@@ -1,0 +1,178 @@
+/* src/styles/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Custom Properties (single source of truth for theme) ── */
+:root {
+  --color-navy: #102A43;
+  --color-navy-dark: #081B2D;
+  --color-royal: #1D4ED8;
+  --color-gold: #D6AD60;
+  --color-gold-soft: #F1D79B;
+  --color-surface: #F5F7FB;
+  --color-ink: #172B4D;
+  --color-ink-light: #64748B;
+  --color-success: #15803D;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+  --color-border: #E2E8F0;
+  --font-bengali: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+  --font-sans: 'Inter', 'Hind Siliguri', system-ui, sans-serif;
+}
+
+/* ── Base resets ── */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-surface);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Bengali text uses Bengali font stack */
+  [lang='bn'],
+  .font-bengali {
+    font-family: var(--font-bengali);
+  }
+
+  img,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    cursor: pointer;
+    font: inherit;
+  }
+
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  /* Focus ring — accessible, visible */
+  :focus-visible {
+    outline: 2px solid var(--color-royal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* ── Component utilities ── */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg
+           bg-gold px-6 py-3 text-sm font-semibold text-navy-dark
+           transition-all duration-200
+           hover:bg-gold-soft hover:shadow-card-hover
+           focus-visible:outline-gold
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg
+           border-2 border-white/80 px-6 py-3 text-sm font-semibold text-white
+           transition-all duration-200
+           hover:bg-white/10
+           focus-visible:outline-white
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg
+           border-2 border-navy px-6 py-3 text-sm font-semibold text-navy
+           transition-all duration-200
+           hover:bg-navy hover:text-white
+           focus-visible:outline-navy
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .card {
+    @apply rounded-2xl bg-white p-6 shadow-card transition-shadow duration-200;
+  }
+
+  .card-hover {
+    @apply card hover:shadow-card-hover;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-border bg-white px-4 py-3
+           text-sm text-ink placeholder:text-ink-light
+           transition-colors duration-150
+           focus:border-royal focus:ring-2 focus:ring-royal/20 focus:outline-none
+           disabled:bg-surface disabled:cursor-not-allowed;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+
+  .error-text {
+    @apply mt-1 text-xs text-error;
+  }
+
+  .section-title {
+    @apply text-2xl md:text-3xl font-bold text-navy font-bengali;
+  }
+
+  .section-subtitle {
+    @apply text-ink-light text-sm md:text-base mt-2;
+  }
+
+  .container-page {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+}
+
+/* ── Scrollbar (thin, subtle) ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-light);
+}
+
+/* ── Bottom nav safe area padding ── */
+.pb-safe {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* ── Print ── */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+      }
