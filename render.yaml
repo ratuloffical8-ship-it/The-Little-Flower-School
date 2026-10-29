@@ -1,0 +1,92 @@
+# render.yaml
+# Render Blueprint for The Little Flower School (TLFS)
+# - tlfs-api : Node/Express backend (free web service; cold starts expected)
+# - tlfs-web : React/Vite frontend (static site)
+# Secrets are NOT stored here: every `sync: false` variable is entered in the
+# Render dashboard when the Blueprint is first applied.
+#
+# NOTE: `npm ci --include=dev` is deliberate. NODE_ENV=production makes plain
+# `npm ci` skip devDependencies (tsc, vite, typescript) and the build fails.
+
+services:
+  # ───────────────────────── Backend API ─────────────────────────
+  - type: web
+    name: tlfs-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: NODE_ENV
+        value: production
+      # Keep false until the frontend sends the App Check header everywhere
+      - key: RECAPTCHA_ENFORCE_APP_CHECK
+        value: "false"
+      # Comma-separated allowed origins, e.g. https://tlfs-web.onrender.com
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_STORAGE_BUCKET
+        sync: false
+      # base64(service-account.json), one line
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+        sync: false
+      # Optional: auto-promote this email to super_admin on first login
+      - key: BOOTSTRAP_SUPER_ADMIN_EMAIL
+        sync: false
+
+  # ───────────────────────── Frontend ─────────────────────────
+  - type: web
+    name: tlfs-web
+    runtime: static
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: dist
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Backend URL, e.g. https://tlfs-api.onrender.com (no trailing slash)
+      - key: VITE_API_BASE_URL
+        sync: false
+      # Canonical frontend URL, e.g. https://tlfs-web.onrender.com
+      - key: VITE_SITE_URL
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_STORAGE_BUCKET
+        sync: false
+      - key: VITE_FIREBASE_MESSAGING_SENDER_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: VITE_RECAPTCHA_SITE_KEY
+        sync: false
+    routes:
+      # SPA fallback for React Router (/admine/*, /results, ...)
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      # Vite emits content-hashed files under /assets
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
