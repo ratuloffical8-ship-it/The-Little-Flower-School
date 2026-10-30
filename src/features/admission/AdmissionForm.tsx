@@ -194,7 +194,7 @@ export default function AdmissionForm() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || `HTTP ${res.status}`);
+        throw new Error(errData.error || errData.message || `HTTP ${res.status}`);
       }
 
       const data = await res.json();
@@ -297,7 +297,7 @@ export default function AdmissionForm() {
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
-                  <LoadingSpinner size="sm" />
+                  <LoadingSpinner size={16} />
                   {isBengali ? 'জমা দেওয়া হচ্ছে…' : 'Submitting…'}
                 </span>
               ) : (
@@ -309,4 +309,4 @@ export default function AdmissionForm() {
       </div>
     </div>
   );
-    }
+  }
