@@ -80,7 +80,7 @@ export async function createInvoice(input: CreateInvoiceInput, actorUid: string)
   const student = await findStudentByStudentId(input.studentId);
   if (!student) throw notFound('Student not found');
 
-  const id = String(await generateId('invoice'));
+  const id = await generateId({ type: 'invoice' });
   await db
     .collection(INVOICES_COLLECTION)
     .doc(id)
@@ -111,4 +111,4 @@ export async function cancelInvoice(id: string): Promise<InvoiceRecord> {
 
   await ref.update({ status: 'cancelled', updatedAt: FieldValue.serverTimestamp() });
   return (await getInvoiceById(id)) as InvoiceRecord;
-}
+  }
