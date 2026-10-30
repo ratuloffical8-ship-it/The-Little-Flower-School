@@ -98,7 +98,7 @@ export async function findStudentByStudentId(studentId: string): Promise<Student
 }
 
 export async function createStudent(input: CreateStudentInput): Promise<StudentRecord> {
-  const studentId = String(await generateId('student'));
+  const studentId = await generateId({ type: 'student' });
   await db
     .collection(COL)
     .doc(studentId)
