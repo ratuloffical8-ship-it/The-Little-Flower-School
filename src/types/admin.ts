@@ -1,6 +1,8 @@
 // src/types/admin.ts
 import type { AdminRole, PermissionKey } from './index';
 
+export type { AdminRole, PermissionKey } from './index';
+
 /* ── Admin User ── */
 
 export interface AdminUser {
