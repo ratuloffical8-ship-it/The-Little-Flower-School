@@ -16,8 +16,8 @@ const COLLECTION = 'auditLogs';
 export interface AuditEntry {
   /** UID of the admin user performing the action */
   actorUid: string;
-  /** Email of the admin user */
-  actorEmail: string;
+  /** Email of the admin user (optional) */
+  actorEmail?: string;
   /** Dot-notation action name, e.g. 'admission.approve', 'student.delete' */
   action: string;
   /** Firestore collection being modified */
@@ -37,7 +37,7 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
   try {
     await db.collection(COLLECTION).add({
       actorUid: entry.actorUid,
-      actorEmail: entry.actorEmail,
+      actorEmail: entry.actorEmail ?? '',
       action: entry.action,
       targetCollection: entry.targetCollection,
       targetId: entry.targetId,
@@ -76,4 +76,4 @@ export async function queryAuditLogs(options: {
     .get();
 
   return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-}
+      }
