@@ -9,6 +9,8 @@ interface EmptyStateProps {
   title?: string;
   /** Description text */
   description?: string;
+  /** Alias of `description` */
+  message?: string;
   /** Optional action button */
   action?: React.ReactNode;
   /** Additional CSS classes */
@@ -19,10 +21,12 @@ export default function EmptyState({
   icon,
   title,
   description,
+  message,
   action,
   className = '',
 }: EmptyStateProps) {
   const { t } = useLanguage();
+  const body = description ?? message;
 
   return (
     <div className={`flex flex-col items-center justify-center py-16 text-center ${className}`}>
@@ -30,21 +34,11 @@ export default function EmptyState({
         {icon || <Inbox size={40} />}
       </div>
 
-      <h3 className="text-lg font-semibold text-navy">
-        {title || t('common.noResults')}
-      </h3>
+      <h3 className="text-lg font-semibold text-navy">{title || t('common.noResults')}</h3>
 
-      {description && (
-        <p className="mt-1 max-w-sm text-sm text-ink-light">
-          {description}
-        </p>
-      )}
+      {body && <p className="mt-1 max-w-sm text-sm text-ink-light">{body}</p>}
 
-      {action && (
-        <div className="mt-6">
-          {action}
-        </div>
-      )}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   );
-}
+                   }
