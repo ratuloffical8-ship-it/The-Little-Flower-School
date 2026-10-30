@@ -1,5 +1,4 @@
 // server/src/services/payment.service.ts
-import { randomUUID } from 'crypto';
 import { db, FieldValue, Timestamp } from '../config/firebase';
 import { generateId } from './counter.service';
 import { uploadFile, getSignedUrl } from './storage.service';
@@ -43,6 +42,8 @@ export interface SubmitPaymentInput {
 export interface PaymentFile {
   buffer: Buffer;
   mimetype: string;
+  /** Original filename (optional; used only to derive the extension) */
+  originalname?: string;
 }
 
 export interface ListPaymentsParams {
@@ -55,13 +56,6 @@ export interface ListPaymentsParams {
 
 const GENERIC_MISMATCH = 'তথ্য মেলেনি / Details do not match';
 const DUPLICATE_TRX = 'এই ট্রানজেকশন আইডি ইতিমধ্যে জমা হয়েছে / Transaction ID already submitted';
-
-const EXT_BY_MIME: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-  'application/pdf': 'pdf',
-};
 
 const iso = (v: unknown): string | undefined =>
   v instanceof Timestamp ? v.toDate().toISOString() : (v as string | undefined);
@@ -121,13 +115,17 @@ export async function submitPayment(input: SubmitPaymentInput, file?: PaymentFil
     .get();
   if (!dup.empty) throw badRequest(DUPLICATE_TRX);
 
-  const id = String(await generateId('payment'));
+  const id = await generateId({ type: 'payment' });
 
   let screenshotPath: string | undefined;
   if (file) {
-    const ext = EXT_BY_MIME[file.mimetype] ?? 'bin';
-    screenshotPath = `payments/${id}/${randomUUID()}.${ext}`;
-    await uploadFile(screenshotPath, file.buffer, file.mimetype);
+    const uploaded = await uploadFile({
+      buffer: file.buffer,
+      originalName: file.originalname ?? '',
+      mimeType: file.mimetype,
+      folder: `payments/${id}`,
+    });
+    screenshotPath = uploaded.path;
   }
 
   await db
