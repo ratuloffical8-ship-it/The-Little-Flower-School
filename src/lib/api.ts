@@ -25,18 +25,21 @@ interface RequestOptions extends RequestInit {
   retryDelay?: number;
 }
 
+export interface UploadOptions {
+  /** HTTP method for multipart uploads (default POST) */
+  method?: 'POST' | 'PUT' | 'PATCH';
+  noAuth?: boolean;
+}
+
 /* ── Constants ── */
 
 const COLD_START_RETRIES = 2;
-const COLD_START_DELAY_MS = 15_000; // 15 seconds — Render free tier can take 30–60s
+const COLD_START_DELAY_MS = 15_000; // Render free tier can take 30–60s
 const WAKE_TIMEOUT_MS = 60_000;
 
 /* ── Core fetch wrapper ── */
 
-async function request<T>(
-  path: string,
-  options: RequestOptions = {},
-): Promise<T> {
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const {
     noAuth = false,
     retries = COLD_START_RETRIES,
@@ -59,7 +62,7 @@ async function request<T>(
     }
   }
 
-  // Set content type for JSON bodies
+  // JSON bodies get a content type. FormData must NOT (the browser adds the boundary).
   if (rest.body && typeof rest.body === 'string' && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
@@ -79,14 +82,13 @@ async function request<T>(
 
       clearTimeout(timeout);
 
-      // Handle cold-start: 502/503/504 from Render sleeping
+      // Cold start: 502/503/504 from Render while sleeping
       if ([502, 503, 504].includes(response.status) && attempt < retries) {
         lastError = new ServerWakingError();
         await delay(retryDelay);
         continue;
       }
 
-      // Parse response
       const contentType = response.headers.get('content-type') || '';
       let data: unknown;
 
@@ -97,12 +99,11 @@ async function request<T>(
       }
 
       if (!response.ok) {
+        const body = data as Record<string, string> | string | null;
+        const bodyObj = typeof body === 'object' && body !== null ? body : {};
         const apiErr: ApiError = {
-          message:
-            (data as Record<string, string>)?.message ||
-            (data as Record<string, string>)?.error ||
-            `Request failed (${response.status})`,
-          code: (data as Record<string, string>)?.code,
+          message: bodyObj.message || bodyObj.error || `Request failed (${response.status})`,
+          code: bodyObj.code,
           status: response.status,
         };
         throw new ApiRequestError(apiErr);
@@ -140,6 +141,47 @@ async function request<T>(
   });
 }
 
+/* ── File upload (two modes) ── */
+
+/** Mode 1: PUT a file to a pre-signed URL (no auth header). */
+function uploadFile(signedUrl: string, file: File, contentType: string): Promise<void>;
+/** Mode 2: send multipart FormData to our API (auth attached). Default POST. */
+function uploadFile<T = unknown>(
+  path: string,
+  formData: FormData,
+  options?: UploadOptions,
+): Promise<T>;
+async function uploadFile(
+  target: string,
+  payload: File | FormData,
+  third?: string | UploadOptions,
+): Promise<unknown> {
+  if (payload instanceof FormData) {
+    const opts: UploadOptions = typeof third === 'object' && third !== null ? third : {};
+    return request<unknown>(target, {
+      method: opts.method ?? 'POST',
+      body: payload,
+      noAuth: opts.noAuth,
+    });
+  }
+
+  const contentType =
+    typeof third === 'string' ? third : payload.type || 'application/octet-stream';
+
+  const response = await fetch(target, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    body: payload,
+  });
+  if (!response.ok) {
+    throw new ApiRequestError({
+      message: 'File upload failed',
+      status: response.status,
+    });
+  }
+  return undefined;
+}
+
 /* ── Public helpers ── */
 
 export const api = {
@@ -170,22 +212,7 @@ export const api = {
   delete: <T>(path: string, opts?: RequestOptions) =>
     request<T>(path, { ...opts, method: 'DELETE' }),
 
-  /**
-   * Upload a file using a signed URL (no auth header — the URL is pre-signed).
-   */
-  uploadFile: async (signedUrl: string, file: File, contentType: string): Promise<void> => {
-    const response = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': contentType },
-      body: file,
-    });
-    if (!response.ok) {
-      throw new ApiRequestError({
-        message: 'File upload failed',
-        status: response.status,
-      });
-    }
-  },
+  uploadFile,
 };
 
 /* ── Custom error classes ── */
@@ -211,4 +238,4 @@ export class ServerWakingError extends Error {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-    }
+}
