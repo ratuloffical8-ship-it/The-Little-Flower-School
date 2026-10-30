@@ -4,6 +4,10 @@ import { api, ApiRequestError, ServerWakingError } from '@/lib/api';
 
 /* ── Types ── */
 
+type ApiMethod =
+  | 'get' | 'post' | 'put' | 'patch' | 'delete'
+  | 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
 interface UseApiState<T> {
   data: T | null;
   isLoading: boolean;
@@ -12,30 +16,77 @@ interface UseApiState<T> {
   errorCode?: string;
 }
 
-interface UseApiReturn<T> extends UseApiState<T> {
-  execute: (...args: unknown[]) => Promise<T | null>;
+interface UseApiBase<T> extends UseApiState<T> {
   reset: () => void;
 }
 
-type ApiMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
+/** Fixed-path mode: useApi('post', '/api/x') → execute(body?) → T | null (never throws). */
+export interface UseApiFixed<T> extends UseApiBase<T> {
+  execute: (...args: unknown[]) => Promise<T | null>;
+}
+
+/** Dynamic-path mode: useApi('PATCH') → execute(path, body?) → T (throws on failure). */
+export interface UseApiDynamic<T> extends UseApiBase<T> {
+  execute: (path: string, body?: unknown) => Promise<T>;
+}
+
+/* ── Helpers ── */
+
+function callApi<R>(method: string, url: string, body?: unknown): Promise<R> {
+  switch (method.toLowerCase()) {
+    case 'get':
+      return api.get<R>(url);
+    case 'post':
+      return api.post<R>(url, body);
+    case 'put':
+      return api.put<R>(url, body);
+    case 'patch':
+      return api.patch<R>(url, body);
+    case 'delete':
+      return api.delete<R>(url);
+    default:
+      throw new Error(`Unsupported method: ${method}`);
+  }
+}
+
+function describeError(err: unknown): { message: string; code?: string; waking: boolean } {
+  if (err instanceof ServerWakingError) {
+    return {
+      message: 'সার্ভার প্রস্তুত হচ্ছে… / Server is waking up…',
+      code: 'SERVER_WAKING',
+      waking: true,
+    };
+  }
+  if (err instanceof ApiRequestError) {
+    const { message, code, status } = err.apiError;
+    const waking =
+      code === 'SERVER_WAKING' || status === 502 || status === 503 || status === 504;
+    return { message, code, waking };
+  }
+  return {
+    message: err instanceof Error ? err.message : 'An unexpected error occurred',
+    code: 'UNKNOWN',
+    waking: false,
+  };
+}
 
 /* ── Hook ── */
 
 /**
- * Generic hook for making API calls with loading/error/waking states.
+ * Fixed path (public pages):
+ *   const { execute } = useApi<Payment>('post', '/api/payments/submit');
+ *   const result = await execute(body);      // T | null, error is in `error`
  *
- * Usage:
- *   const { data, isLoading, isWaking, error, execute } = useApi<Student[]>('get', '/api/students');
- *   useEffect(() => { execute(); }, []);
- *
- * Or for POST with body:
- *   const { execute } = useApi<Payment>('post', '/api/payments');
- *   execute(paymentData);
+ * Dynamic path (admin pages):
+ *   const { execute } = useApi('PATCH');
+ *   await execute('/api/payments/abc/review', body);   // T, throws on failure
  */
+export function useApi<T = unknown>(method: ApiMethod, path: string): UseApiFixed<T>;
+export function useApi<T = unknown>(method: ApiMethod): UseApiDynamic<T>;
 export function useApi<T = unknown>(
   method: ApiMethod,
-  path: string,
-): UseApiReturn<T> {
+  path?: string,
+): UseApiFixed<T> | UseApiDynamic<T> {
   const [state, setState] = useState<UseApiState<T>>({
     data: null,
     isLoading: false,
@@ -46,6 +97,7 @@ export function useApi<T = unknown>(
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };
@@ -58,100 +110,66 @@ export function useApi<T = unknown>(
   }, []);
 
   const execute = useCallback(
-    async (...args: unknown[]): Promise<T | null> => {
-      if (!mountedRef.current) return null;
+    async (...args: unknown[]): Promise<unknown> => {
+      const dynamic = path === undefined;
+      const url = dynamic ? String(args[0] ?? '') : (path as string);
+      const body = dynamic ? args[1] : args[0];
 
-      setState((prev) => ({
-        ...prev,
-        isLoading: true,
-        isWaking: false,
-        error: null,
-        errorCode: undefined,
-      }));
+      if (!url) {
+        if (dynamic) throw new Error('API path is required');
+        return null;
+      }
+
+      if (mountedRef.current) {
+        setState((prev) => ({
+          ...prev,
+          isLoading: true,
+          isWaking: false,
+          error: null,
+          errorCode: undefined,
+        }));
+      }
 
       try {
-        let result: T;
-
-        switch (method) {
-          case 'get':
-            result = await api.get<T>(path);
-            break;
-          case 'post':
-            result = await api.post<T>(path, args[0]);
-            break;
-          case 'put':
-            result = await api.put<T>(path, args[0]);
-            break;
-          case 'patch':
-            result = await api.patch<T>(path, args[0]);
-            break;
-          case 'delete':
-            result = await api.delete<T>(path);
-            break;
-          default:
-            throw new Error(`Unsupported method: ${method}`);
-        }
-
+        const result = await callApi<T>(method, url, body);
         if (mountedRef.current) {
-          setState({
-            data: result,
-            isLoading: false,
-            isWaking: false,
-            error: null,
-          });
+          setState({ data: result, isLoading: false, isWaking: false, error: null });
         }
-
         return result;
       } catch (err) {
-        if (!mountedRef.current) return null;
-
-        if (err instanceof ServerWakingError) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            isWaking: true,
-            error: 'সার্ভার প্রস্তুত হচ্ছে… / Server is waking up…',
-            errorCode: 'SERVER_WAKING',
-          }));
-          return null;
-        }
-
-        if (err instanceof ApiRequestError) {
+        const info = describeError(err);
+        if (mountedRef.current) {
           setState({
             data: null,
             isLoading: false,
-            isWaking: false,
-            error: err.apiError.message,
-            errorCode: err.apiError.code,
+            isWaking: info.waking,
+            error: info.message,
+            errorCode: info.code,
           });
-          return null;
         }
-
-        setState({
-          data: null,
-          isLoading: false,
-          isWaking: false,
-          error: err instanceof Error ? err.message : 'An unexpected error occurred',
-          errorCode: 'UNKNOWN',
-        });
+        if (dynamic) throw err;
         return null;
       }
     },
     [method, path],
   );
 
-  return { ...state, execute, reset };
+  return { ...state, execute, reset } as unknown as UseApiFixed<T>;
 }
 
-/* ── Convenience: one-shot fetch on mount ── */
+/* ── Convenience: fetch on mount / when path or deps change ── */
 
-export function useApiGet<T = unknown>(path: string, deps: unknown[] = []): UseApiReturn<T> {
+/** An empty string path means "do not fetch yet". `execute()` refetches. */
+export function useApiGet<T = unknown>(path: string, deps: unknown[] = []): UseApiFixed<T> {
   const hook = useApi<T>('get', path);
+  const { execute } = hook;
 
   useEffect(() => {
-    hook.execute();
+    if (path) {
+      void execute();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [path, execute, ...deps]);
 
   return hook;
-                                       }
+  }
