@@ -1,10 +1,10 @@
 // src/App.tsx
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
 import AdminLayout from '@/layouts/AdminLayout';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/hooks/useAuth';
 
 /* ── Public pages (lazy) ── */
 const HomePage = lazy(() => import('@/pages/HomePage'));
@@ -21,29 +21,38 @@ const FAQPage = lazy(() => import('@/pages/FAQPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 /* ── Admin pages (lazy) ── */
-const LoginPage = lazy(() => import('@/pages/admin/LoginPage'));
-const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
-const AdmissionsPage = lazy(() => import('@/pages/admin/AdmissionsPage'));
-const AdmissionDetailPage = lazy(() => import('@/pages/admin/AdmissionDetailPage'));
-const StudentsPage = lazy(() => import('@/pages/admin/StudentsPage'));
-const StudentDetailPage = lazy(() => import('@/pages/admin/StudentDetailPage'));
-const ClassesPage = lazy(() => import('@/pages/admin/ClassesPage'));
-const TeachersPage = lazy(() => import('@/pages/admin/TeachersPage'));
-const AttendancePage = lazy(() => import('@/pages/admin/AttendancePage'));
-const ExamsPage = lazy(() => import('@/pages/admin/ExamsPage'));
-const ResultsAdminPage = lazy(() => import('@/pages/admin/ResultsAdminPage'));
-const FeesPage = lazy(() => import('@/pages/admin/FeesPage'));
-const PaymentVerificationPage = lazy(() => import('@/pages/admin/PaymentVerificationPage'));
-const ExpensesPage = lazy(() => import('@/pages/admin/ExpensesPage'));
-const NoticesAdminPage = lazy(() => import('@/pages/admin/NoticesAdminPage'));
-const FAQsAdminPage = lazy(() => import('@/pages/admin/FAQsAdminPage'));
-const GalleryAdminPage = lazy(() => import('@/pages/admin/GalleryAdminPage'));
-const ContactMessagesPage = lazy(() => import('@/pages/admin/ContactMessagesPage'));
-const ReportsPage = lazy(() => import('@/pages/admin/ReportsPage'));
-const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
-const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage'));
-const AuditLogsPage = lazy(() => import('@/pages/admin/AuditLogsPage'));
-const BackupPage = lazy(() => import('@/pages/admin/BackupPage'));
+const LoginPage = lazy(() => import('@/features/admin/LoginPage'));
+const AdminDashboard = lazy(() => import('@/features/admin/AdminDashboard'));
+const AdmissionsListPage = lazy(() => import('@/features/admin/admissions/AdmissionsListPage'));
+const AdmissionDetailPage = lazy(() => import('@/features/admin/admissions/AdmissionDetailPage'));
+const StudentsListPage = lazy(() => import('@/features/admin/students/StudentsListPage'));
+const StudentDetailPage = lazy(() => import('@/features/admin/students/StudentDetailPage'));
+const TeachersListPage = lazy(() => import('@/features/admin/teachers/TeachersListPage'));
+const AttendancePage = lazy(() => import('@/features/admin/attendance/AttendancePage'));
+const ExamsListPage = lazy(() => import('@/features/admin/exams/ExamsListPage'));
+const ResultsEntryPage = lazy(() => import('@/features/admin/exams/ResultsEntryPage'));
+const NoticesListPage = lazy(() => import('@/features/admin/notices/NoticesListPage'));
+const GalleryListPage = lazy(() => import('@/features/admin/gallery/GalleryListPage'));
+const FAQListPage = lazy(() => import('@/features/admin/faq/FAQListPage'));
+const ContactMessagesPage = lazy(() => import('@/features/admin/contact/ContactMessagesPage'));
+const PaymentsListPage = lazy(() => import('@/features/admin/payments/PaymentsListPage'));
+const InvoicesListPage = lazy(() => import('@/features/admin/payments/InvoicesListPage'));
+const ExpensesListPage = lazy(() => import('@/features/admin/expenses/ExpensesListPage'));
+const ReportsPage = lazy(() => import('@/features/admin/reports/ReportsPage'));
+const SettingsPage = lazy(() => import('@/features/admin/settings/SettingsPage'));
+const UsersListPage = lazy(() => import('@/features/admin/users/UsersListPage'));
+
+/* ── Admin guard: only signed-in admins reach the admin shell ── */
+function RequireAdmin() {
+  const { user, isAdmin, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) return <LoadingSpinner fullScreen />;
+  if (!user || !isAdmin) {
+    return <Navigate to="/admine/login" state={{ from: location }} replace />;
+  }
+  return <AdminLayout />;
+}
 
 function App() {
   return (
@@ -53,39 +62,41 @@ function App() {
         <Route path="/admin" element={<Navigate to="/admine" replace />} />
 
         {/* ── Admin login (no layout) ── */}
-        <Route path="/admine" element={<LoginPage />} />
+        <Route path="/admine/login" element={<LoginPage />} />
 
         {/* ── Admin panel (protected) ── */}
-        <Route
-          path="/admine/*"
-          element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="admissions" element={<AdmissionsPage />} />
+        <Route path="/admine" element={<RequireAdmin />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="dashboard" element={<Navigate to="/admine" replace />} />
+
+          <Route path="admissions" element={<AdmissionsListPage />} />
           <Route path="admissions/:id" element={<AdmissionDetailPage />} />
-          <Route path="students" element={<StudentsPage />} />
+          <Route path="students" element={<StudentsListPage />} />
           <Route path="students/:id" element={<StudentDetailPage />} />
-          <Route path="classes" element={<ClassesPage />} />
-          <Route path="teachers" element={<TeachersPage />} />
+          <Route path="teachers" element={<TeachersListPage />} />
           <Route path="attendance" element={<AttendancePage />} />
-          <Route path="exams" element={<ExamsPage />} />
-          <Route path="results" element={<ResultsAdminPage />} />
-          <Route path="fees" element={<FeesPage />} />
-          <Route path="payments" element={<PaymentVerificationPage />} />
-          <Route path="expenses" element={<ExpensesPage />} />
-          <Route path="notices" element={<NoticesAdminPage />} />
-          <Route path="faqs" element={<FAQsAdminPage />} />
-          <Route path="gallery" element={<GalleryAdminPage />} />
-          <Route path="contacts" element={<ContactMessagesPage />} />
+          <Route path="exams" element={<ExamsListPage />} />
+          <Route path="exams/:examId/results" element={<ResultsEntryPage />} />
+          <Route path="notices" element={<NoticesListPage />} />
+          <Route path="gallery" element={<GalleryListPage />} />
+          <Route path="faq" element={<FAQListPage />} />
+          <Route path="contact" element={<ContactMessagesPage />} />
+          <Route path="payments" element={<PaymentsListPage />} />
+          <Route path="invoices" element={<InvoicesListPage />} />
+          <Route path="expenses" element={<ExpensesListPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="settings" element={<SettingsPage />} />
-          <Route path="admins" element={<AdminUsersPage />} />
-          <Route path="logs" element={<AuditLogsPage />} />
-          <Route path="backup" element={<BackupPage />} />
+          <Route path="users" element={<UsersListPage />} />
+
+          {/* Old menu links → new pages */}
+          <Route path="fees" element={<Navigate to="/admine/invoices" replace />} />
+          <Route path="faqs" element={<Navigate to="/admine/faq" replace />} />
+          <Route path="contacts" element={<Navigate to="/admine/contact" replace />} />
+          <Route path="admins" element={<Navigate to="/admine/users" replace />} />
+          <Route path="results" element={<Navigate to="/admine/exams" replace />} />
+          <Route path="classes" element={<Navigate to="/admine" replace />} />
+          <Route path="logs" element={<Navigate to="/admine" replace />} />
+          <Route path="backup" element={<Navigate to="/admine" replace />} />
         </Route>
 
         {/* ── Public site ── */}
