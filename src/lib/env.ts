@@ -41,3 +41,6 @@ function getEnv() {
 }
 
 export const env = getEnv();
+
+/** Shortcut used by code that only needs the backend URL */
+export const API_BASE_URL = env.VITE_API_BASE_URL;
