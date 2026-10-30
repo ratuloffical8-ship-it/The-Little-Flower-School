@@ -82,3 +82,11 @@ export const approveApplicationSchema = z.object({
 });
 
 export type ApproveApplicationInput = z.infer<typeof approveApplicationSchema>;
+
+// ── Public: application status lookup ───────────────────────────────
+export const statusLookupSchema = z.object({
+  applicationId: z.string().trim().min(1).max(40).transform((v) => v.toUpperCase()),
+  mobile: bdPhoneSchema,
+});
+
+export type StatusLookupInput = z.infer<typeof statusLookupSchema>;
