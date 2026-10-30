@@ -1,4 +1,4 @@
-// src/hooks/useAuth.ts
+// src/hooks/useAuth.tsx
 import {
   createContext,
   useContext,
@@ -12,7 +12,6 @@ import {
   signIn as firebaseSignIn,
   signOut as firebaseSignOut,
   onAuthChange,
-  getIdToken,
   resetPassword as firebaseResetPassword,
 } from '@/lib/firebase/auth';
 import { api, ApiRequestError } from '@/lib/api';
@@ -99,7 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await firebaseSignIn(email, password);
 
       // Verify admin status via backend (checks custom claims + active admins doc)
-      await api.get('/api/auth/verify', { retries: 1 });
+      // Backend route is POST /api/auth/verify
+      await api.post('/api/auth/verify', undefined, { retries: 1 });
 
       // Force refresh token to get latest claims
       const tokenResult = await user.getIdTokenResult(true);
@@ -207,4 +207,4 @@ export function useAuth(): AuthContextValue {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return ctx;
-}
+      }
