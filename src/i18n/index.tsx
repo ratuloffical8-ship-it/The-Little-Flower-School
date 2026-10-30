@@ -1,4 +1,4 @@
-// src/i18n/index.ts
+// src/i18n/index.tsx
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { bn } from './bn';
 import { en } from './en';
@@ -7,7 +7,10 @@ import { en } from './en';
 
 export type Locale = 'bn' | 'en';
 
-export type TranslationDict = typeof bn;
+/** Same shape as `bn`, but every text is a plain string (so `en` fits too). */
+type Widen<T> = T extends string ? string : { -readonly [K in keyof T]: Widen<T[K]> };
+
+export type TranslationDict = Widen<typeof bn>;
 
 type DeepStringRecord = { [key: string]: string | DeepStringRecord };
 
@@ -73,4 +76,4 @@ export function useLanguage(): LanguageContextValue {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return ctx;
-    }
+}
