@@ -77,31 +77,46 @@ export interface AdmissionFormData {
   studentNameBn: string;
   studentNameEn: string;
   dateOfBirth: string;
-  gender: 'male' | 'female' | 'other';
-  birthRegNo: string;
-  birthRegDoc: File | null;
-  photo: File | null;
-  applyingClassId: string;
+  gender: 'male' | 'female' | 'other' | '';
+  classApplyingFor: string;
   previousSchool: string;
-  previousClass: string;
-  previousResult: string;
-  currentAddress: string;
-  permanentAddress: string;
-  sameAsCurrent: boolean;
+  religion: string;
+  nationality: string;
+  bloodGroup: string;
 
   // Step 2: Guardian
   fatherName: string;
   motherName: string;
   guardianName: string;
-  guardianRelation: string;
-  primaryMobile: string;
-  secondaryMobile: string;
+  relationship: string;
+  occupation: string;
+  nid: string;
+  mobile: string;
   email: string;
-  guardianAddress: string;
+  presentAddress: string;
+  monthlyIncome: string;
 
-  // Step 3: Documents
-  additionalDocs: File[];
-  consent: boolean;
+  // Step 3: Documents (single file each)
+  photo: File | null;
+  birthCertificate: File | null;
+  previousReportCard: File | null;
+  guardianNid: File | null;
+
+  // Older field names kept optional so nothing that still references them breaks
+  birthRegNo?: string;
+  birthRegDoc?: File | null;
+  applyingClassId?: string;
+  previousClass?: string;
+  previousResult?: string;
+  currentAddress?: string;
+  permanentAddress?: string;
+  sameAsCurrent?: boolean;
+  guardianRelation?: string;
+  primaryMobile?: string;
+  secondaryMobile?: string;
+  guardianAddress?: string;
+  additionalDocs?: File[];
+  consent?: boolean;
 }
 
 /* ── Status lookup request/response ── */
