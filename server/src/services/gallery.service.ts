@@ -86,8 +86,12 @@ export async function listPublishedGallery(category?: string): Promise<GalleryRe
     query = query.where('category', '==', category);
   }
 
-  const snap = await query.orderBy('order', 'asc').limit(200).get();
-  const records = snap.docs.map(toRecord);
+  const snap = await query.limit(500).get();
+  // Sorted in memory: no Firestore composite index needed.
+  const records = snap.docs
+    .map(toRecord)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .slice(0, 200);
   return attachSignedUrls(records);
 }
 
@@ -117,16 +121,13 @@ export async function listAllGallery(options: {
   if (options.category) query = query.where('category', '==', options.category);
   if (options.published !== undefined) query = query.where('published', '==', options.published);
 
-  const countSnap = await query.count().get();
-  const total = countSnap.data().count;
+  // Filter/sort/paginate in memory: no Firestore composite index needed.
+  const snap = await query.get();
+  const all = snap.docs.map(toRecord).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const total = all.length;
+  const start = (options.page - 1) * options.pageSize;
 
-  const snap = await query
-    .orderBy('order', 'asc')
-    .offset((options.page - 1) * options.pageSize)
-    .limit(options.pageSize)
-    .get();
-
-  const records = snap.docs.map(toRecord);
+  const records = all.slice(start, start + options.pageSize);
   const withUrls = await attachSignedUrls(records);
   return { items: withUrls, total, page: options.page, pageSize: options.pageSize };
 }
@@ -168,4 +169,4 @@ export async function deleteGalleryItem(id: string): Promise<void> {
     }
     await snap.ref.delete();
   }
-}
+    }
