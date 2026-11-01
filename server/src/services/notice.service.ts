@@ -63,10 +63,13 @@ export async function listPublishedNotices(): Promise<NoticeRecord[]> {
   const snap = await db
     .collection(COLLECTION)
     .where('published', '==', true)
-    .orderBy('date', 'desc')
-    .limit(100)
+    .limit(300)
     .get();
-  return snap.docs.map(toRecord);
+  // Sorted in memory: no Firestore composite index needed.
+  return snap.docs
+    .map(toRecord)
+    .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))
+    .slice(0, 100);
 }
 
 // ── Public: get single notice by ID (only if published) ─────────────
@@ -93,17 +96,16 @@ export async function listAllNotices(options: {
     query = query.where('important', '==', options.important);
   }
 
-  const countSnap = await query.count().get();
-  const total = countSnap.data().count;
-
-  const snap = await query
-    .orderBy('date', 'desc')
-    .offset((options.page - 1) * options.pageSize)
-    .limit(options.pageSize)
-    .get();
+  // Filter/sort/paginate in memory: no Firestore composite index needed.
+  const snap = await query.get();
+  const all = snap.docs
+    .map(toRecord)
+    .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+  const total = all.length;
+  const start = (options.page - 1) * options.pageSize;
 
   return {
-    items: snap.docs.map(toRecord),
+    items: all.slice(start, start + options.pageSize),
     total,
     page: options.page,
     pageSize: options.pageSize,
