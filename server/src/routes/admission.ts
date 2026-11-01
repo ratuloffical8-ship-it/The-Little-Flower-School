@@ -341,7 +341,10 @@ router.post(
         return;
       }
 
-      const { classId, sessionId, rollNumber, note } = req.body;
+      const { rollNumber, note } = req.body;
+      const classId: string =
+        req.body.classId || app.student.classApplyingFor || 'unassigned';
+      const sessionId: string = req.body.sessionId || (await getActiveSessionId());
       const year = parseInt(sessionId, 10) || new Date().getFullYear();
 
       // Generate student ID
