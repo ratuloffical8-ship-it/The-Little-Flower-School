@@ -16,7 +16,11 @@ const envSchema = z.object({
 
   FIREBASE_PROJECT_ID: z.string().min(1),
 
-  FIREBASE_STORAGE_BUCKET: z.string().min(1),
+  /** Not needed any more (images go to ImgBB). Optional, kept for compatibility. */
+  FIREBASE_STORAGE_BUCKET: z.string().optional(),
+
+  /** Free ImgBB API key (https://api.imgbb.com/) — used for all image uploads */
+  IMGBB_API_KEY: z.string().optional(),
 
   /** Base64-encoded Firebase service account JSON */
   FIREBASE_SERVICE_ACCOUNT_BASE64: z.string().min(1),
