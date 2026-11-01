@@ -31,6 +31,7 @@ import expensesRoutes from './routes/expenses';
 import settingsRoutes from './routes/settings';
 import usersRoutes from './routes/users';
 import publicRoutes from './routes/public';
+import classesRoutes from './routes/classes';
 
 const app = express();
 
@@ -95,6 +96,7 @@ app.use('/api/expenses', expensesRoutes);
 app.use('/api/settings', publicRoutes); // MUST come before the admin settings router
 app.use('/api/settings', settingsRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/classes', classesRoutes);
 
 // ── 404 + Global Error Handler (must be last) ───────────────────────
 app.use(notFoundHandler);
