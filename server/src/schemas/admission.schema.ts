@@ -75,8 +75,10 @@ export type UpdateApplicationStatusInput = z.infer<
 
 // ── Admin: approve → create student ────────────────────────────────
 export const approveApplicationSchema = z.object({
-  classId: z.string().min(1),
-  sessionId: z.string().min(1),
+  /** Optional: defaults to the class the applicant applied for */
+  classId: z.string().min(1).optional(),
+  /** Optional: defaults to the active session */
+  sessionId: z.string().min(1).optional(),
   rollNumber: z.coerce.number().int().min(1).optional(),
   note: z.string().trim().max(1000).optional().default(''),
 });
@@ -86,7 +88,7 @@ export type ApproveApplicationInput = z.infer<typeof approveApplicationSchema>;
 // ── Public: application status lookup ───────────────────────────────
 export const statusLookupSchema = z.object({
   applicationId: z.string().trim().min(1).max(40).transform((v) => v.toUpperCase()),
-  mobile: bdPhoneSchema,
+  guardianMobile: bdPhoneSchema,
 });
 
 export type StatusLookupInput = z.infer<typeof statusLookupSchema>;
