@@ -1,148 +1,101 @@
 // server/src/services/storage.service.ts
-import { storage } from '../config/firebase';
-import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import { env } from '../config/env';
 
 /**
- * Firebase Storage service — handles uploads to the private bucket.
+ * ImgBB storage service (free, no credit card).
  *
- * Convention: files are stored at structured paths like:
- *   admissions/{applicationId}/photo.jpg
- *   payments/{paymentId}/screenshot.png
- *   gallery/{itemId}/{filename}
- *   notices/{noticeId}/{filename}
+ * - Only IMAGES are supported (JPG, PNG, WebP). ImgBB does not accept PDFs.
+ * - The returned `path` is the full public image URL. Store it in Firestore as-is.
+ * - Anything that was stored as an http(s) URL is returned unchanged by getSignedUrl().
+ * - ImgBB has no delete API: deleteFile() is a safe no-op.
  *
- * All uploads go to the PRIVATE bucket. Access is via signed URLs
- * generated on-demand by backend handlers (never exposed as public URLs).
+ * Set IMGBB_API_KEY in the Render env (get a free key at https://api.imgbb.com/).
  */
 
 export interface UploadInput {
-  /** Raw file buffer (from multer.memoryStorage) */
   buffer: Buffer;
-  /** Original filename (used to derive extension) */
   originalName: string;
-  /** MIME type */
   mimeType: string;
-  /** Target folder path (no leading/trailing slashes) */
+  /** Kept for API compatibility (used only to build the image name) */
   folder: string;
-  /** Optional filename stem (default: random UUID) */
   nameStem?: string;
 }
 
 export interface UploadResult {
-  /** Full storage path (e.g. "admissions/TLFS-APP-2025-000001/photo-abc.jpg") */
+  /** Public image URL (stored in Firestore) */
   path: string;
-  /** Content type stored */
   contentType: string;
-  /** File size in bytes */
   size: number;
 }
 
-const ALLOWED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'application/pdf',
-]);
-
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3 MB
 
-function sanitizeExtension(originalName: string, mimeType: string): string {
-  const ext = path.extname(originalName).toLowerCase().replace(/[^.a-z0-9]/g, '');
-  if (ext) return ext;
-  // Fallback based on MIME
-  const map: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'application/pdf': '.pdf',
-  };
-  return map[mimeType] ?? '';
+function fail(message: string, status = 400): never {
+  const err = new Error(message);
+  (err as Error & { status: number }).status = status;
+  throw err;
 }
 
-function sanitizeFolder(folder: string): string {
-  return folder
-    .replace(/^\/+|\/+$/g, '')
-    .replace(/[^a-zA-Z0-9/_-]/g, '_');
+function safeName(input: UploadInput): string {
+  const stem = (input.nameStem ?? path.parse(input.originalName).name ?? 'file')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .slice(0, 40);
+  const folder = input.folder.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+  return `${folder}_${stem}_${Date.now()}`;
 }
 
-/**
- * Upload a single file to Firebase Storage.
- * Validates MIME type and size before upload.
- */
 export async function uploadFile(input: UploadInput): Promise<UploadResult> {
-  if (!ALLOWED_MIME_TYPES.has(input.mimeType)) {
-    const err = new Error(
-      `Invalid file type: ${input.mimeType}. Allowed: JPG, PNG, WebP, PDF.`
-    );
-    (err as any).status = 400;
-    throw err;
+  if (input.mimeType === 'application/pdf') {
+    fail('PDF আপলোড করা যাবে না, ছবি (JPG/PNG) দিন। / PDF is not supported, please upload an image (JPG/PNG).');
   }
-
+  if (!ALLOWED_IMAGE_TYPES.has(input.mimeType)) {
+    fail(`Invalid file type: ${input.mimeType}. Allowed: JPG, PNG, WebP.`);
+  }
   if (input.buffer.length > MAX_FILE_SIZE_BYTES) {
-    const err = new Error(
-      `File too large: ${(input.buffer.length / 1024 / 1024).toFixed(2)} MB. Max 3 MB.`
-    );
-    (err as any).status = 400;
-    throw err;
+    fail(`File too large: ${(input.buffer.length / 1024 / 1024).toFixed(2)} MB. Max 3 MB.`);
+  }
+  if (!env.IMGBB_API_KEY) {
+    fail('ছবি আপলোড সেটআপ হয়নি (IMGBB_API_KEY নেই)। / Image upload is not configured.', 503);
   }
 
-  const folder = sanitizeFolder(input.folder);
-  const ext = sanitizeExtension(input.originalName, input.mimeType);
-  const stem = input.nameStem ?? uuidv4();
-  const filePath = `${folder}/${stem}${ext}`;
+  const form = new FormData();
+  form.append('image', input.buffer.toString('base64'));
+  form.append('name', safeName(input));
 
-  const bucket = storage.bucket();
-  const file = bucket.file(filePath);
-
-  await file.save(input.buffer, {
-    contentType: input.mimeType,
-    resumable: false,
-    metadata: {
-      cacheControl: 'private, max-age=0, no-transform',
-    },
-  });
-
-  return {
-    path: filePath,
-    contentType: input.mimeType,
-    size: input.buffer.length,
-  };
-}
-
-/**
- * Generate a short-lived signed URL for a stored file.
- * Default expiry: 15 minutes.
- */
-export async function getSignedUrl(
-  filePath: string,
-  expiresInMinutes = 15
-): Promise<string> {
-  const bucket = storage.bucket();
-  const [url] = await bucket.file(filePath).getSignedUrl({
-    action: 'read',
-    expires: Date.now() + expiresInMinutes * 60 * 1000,
-  });
-  return url;
-}
-
-/**
- * Delete a file from storage. Silently succeeds if the file doesn't exist.
- */
-export async function deleteFile(filePath: string): Promise<void> {
-  const bucket = storage.bucket();
+  let res: Response;
   try {
-    await bucket.file(filePath).delete();
-  } catch (err: any) {
-    // 404 = already gone, ignore
-    if (err?.code !== 404) throw err;
+    res = await fetch(
+      `https://api.imgbb.com/1/upload?key=${encodeURIComponent(env.IMGBB_API_KEY)}`,
+      { method: 'POST', body: form, signal: AbortSignal.timeout(30_000) },
+    );
+  } catch {
+    fail('ছবি আপলোড হয়নি, আবার চেষ্টা করুন। / Image upload failed, please retry.', 502);
   }
+
+  const json = (await res.json().catch(() => null)) as
+    | { success?: boolean; data?: { url?: string; display_url?: string } }
+    | null;
+  const url = json?.data?.url ?? json?.data?.display_url;
+  if (!res.ok || !json?.success || !url) {
+    console.error('[IMGBB] upload failed', res.status, JSON.stringify(json)?.slice(0, 300));
+    fail('ছবি আপলোড হয়নি, আবার চেষ্টা করুন। / Image upload failed, please retry.', 502);
+  }
+
+  return { path: url, contentType: input.mimeType, size: input.buffer.length };
 }
 
-/**
- * Delete multiple files. Collects errors but doesn't throw on individual
- * failures.
- */
+/** Stored paths are already public URLs. */
+export async function getSignedUrl(filePath: string, _expiresInMinutes = 15): Promise<string> {
+  return filePath;
+}
+
+/** ImgBB has no delete API — nothing to do. */
+export async function deleteFile(_filePath: string): Promise<void> {
+  return;
+}
+
 export async function deleteFiles(filePaths: string[]): Promise<void> {
-  await Promise.all(filePaths.map((p) => deleteFile(p).catch(() => undefined)));
+  await Promise.all(filePaths.map((p) => deleteFile(p)));
 }
