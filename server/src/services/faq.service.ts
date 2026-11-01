@@ -57,16 +57,16 @@ export async function listPublishedFAQ(): Promise<FAQRecord[]> {
   const snap = await db
     .collection(COLLECTION)
     .where('published', '==', true)
-    .orderBy('order', 'asc')
-    .limit(100)
+    .limit(200)
     .get();
-  return snap.docs.map(toRecord);
+  // Sorted in memory: no Firestore composite index needed.
+  return snap.docs.map(toRecord).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 // ── Admin: list all ─────────────────────────────────────────────────
 export async function listAllFAQ(): Promise<FAQRecord[]> {
-  const snap = await db.collection(COLLECTION).orderBy('order', 'asc').get();
-  return snap.docs.map(toRecord);
+  const snap = await db.collection(COLLECTION).get();
+  return snap.docs.map(toRecord).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 // ── Admin: get by ID ────────────────────────────────────────────────
@@ -109,4 +109,4 @@ export async function reorderFAQ(ordering: Array<{ id: string; order: number }>)
     batch.update(ref, { order, updatedAt: FieldValue.serverTimestamp() });
   });
   await batch.commit();
-}
+    }
