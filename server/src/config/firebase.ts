@@ -29,7 +29,7 @@ if (!admin.apps.length) {
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    storageBucket: env.FIREBASE_STORAGE_BUCKET,
+    ...(env.FIREBASE_STORAGE_BUCKET ? { storageBucket: env.FIREBASE_STORAGE_BUCKET } : {}),
   });
 
   console.log(
@@ -39,7 +39,6 @@ if (!admin.apps.length) {
 
 // ── Export convenience references ───────────────────────────────────
 export const db = admin.firestore();
-export const storage = admin.storage();
 export const auth = admin.auth();
 export const FieldValue = admin.firestore.FieldValue;
 export const Timestamp = admin.firestore.Timestamp;
