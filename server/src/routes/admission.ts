@@ -246,6 +246,7 @@ router.get(
     try {
       const q = req.query as any;
       const result = await listApplications({
+        search: q.search,
         status: q.status,
         classApplyingFor: q.classApplyingFor,
         sessionId: q.sessionId,
