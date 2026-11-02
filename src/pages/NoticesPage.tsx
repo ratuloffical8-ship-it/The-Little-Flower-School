@@ -8,13 +8,30 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import ServerWaking from '@/components/ServerWaking';
 import EmptyState from '@/components/EmptyState';
 import { formatDate } from '@/utils/format';
-import type { Notice } from '@/types';
+
+interface NoticeItem {
+  id: string;
+  titleBn: string;
+  titleEn: string;
+  descriptionBn?: string;
+  descriptionEn?: string;
+  important?: boolean;
+  isImportant?: boolean;
+  date?: string;
+  publicationDate?: string;
+  pdfPath?: string;
+}
 
 export default function NoticesPage() {
   const { t, isBengali, locale } = useLanguage();
 
-  const { data: notices, isLoading, isWaking, error, execute } =
-    useApi<Notice[]>('get', '/api/notices/published');
+  const { data: raw, isLoading, isWaking, error, execute } =
+    useApi<NoticeItem[] | { items: NoticeItem[] }>('get', '/api/notices/published');
+  const notices: NoticeItem[] | null = raw
+    ? Array.isArray(raw)
+      ? raw
+      : raw.items ?? []
+    : null;
 
   useEffect(() => {
     execute();
@@ -68,10 +85,10 @@ export default function NoticesPage() {
               <article
                 key={notice.id}
                 className={`card relative ${
-                  notice.isImportant ? 'border-l-4 border-l-gold' : ''
+                  (notice.important ?? notice.isImportant) ? 'border-l-4 border-l-gold' : ''
                 }`}
               >
-                {notice.isImportant && (
+                {(notice.important ?? notice.isImportant) && (
                   <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold text-gold">
                     <Star size={10} />
                     {t('notices.important')}
@@ -84,7 +101,7 @@ export default function NoticesPage() {
 
                 <p className="mt-1 text-xs text-ink-light">
                   {t('notices.publishedOn')}:{' '}
-                  {formatDate(notice.publicationDate, locale)}
+                  {formatDate(notice.date ?? notice.publicationDate ?? '', locale)}
                 </p>
 
                 {(isBengali ? notice.descriptionBn : notice.descriptionEn) && (
@@ -93,11 +110,12 @@ export default function NoticesPage() {
                   </p>
                 )}
 
-                {notice.pdfPath && (
+                {notice.pdfPath && /^https?:\/\//.test(notice.pdfPath) && (
                   <a
-                    href="#"
+                    href={notice.pdfPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-royal hover:underline"
-                    onClick={(e) => e.preventDefault()}
                   >
                     <Download size={12} />
                     {t('notices.downloadPdf')}
@@ -110,4 +128,4 @@ export default function NoticesPage() {
       </section>
     </>
   );
-                  }
+         }
