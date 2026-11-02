@@ -2,20 +2,55 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Search, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useApi } from '@/hooks/useApi';
 import SEOHead from '@/components/SEOHead';
 import ServerWaking from '@/components/ServerWaking';
-import { resultLookupSchema } from '@/utils/validation';
 import { formatGPA, formatPercentage } from '@/utils/format';
-import type { Result, Exam } from '@/types';
 
-type FormData = {
-  studentId: string;
-  examId: string;
-  dateOfBirth: string;
-};
+/* ── Types (match GET /api/results/exams/published and POST /api/results/lookup) ── */
+
+interface PublishedExam {
+  id: string;
+  name: string;
+  classId?: string;
+}
+
+interface SubjectRow {
+  name: string;
+  fullMarks: number;
+  marks: number | null;
+  grade: string;
+  gradePoint: number;
+  passed: boolean;
+}
+
+interface PublicResult {
+  exam: { id: string; name: string };
+  student: { studentId: string; name: string; classId: string; roll?: string | number };
+  subjects: SubjectRow[];
+  total: number;
+  fullTotal: number;
+  percentage: number;
+  gpa: number;
+  grade: string;
+  passed: boolean;
+}
+
+/* ── Form: exam + roll + guardian mobile ── */
+
+const lookupSchema = z.object({
+  examId: z.string().min(1, 'পরীক্ষা নির্বাচন করুন / Select an exam'),
+  roll: z.string().trim().regex(/^\d{1,4}$/, 'সঠিক রোল নম্বর দিন / Enter a valid roll number'),
+  mobile: z
+    .string()
+    .trim()
+    .regex(/^(?:\+?88)?01[3-9]\d{8}$/, 'সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX) / Enter a valid mobile number'),
+});
+
+type FormData = z.infer<typeof lookupSchema>;
 
 export default function ResultsPage() {
   const { t, isBengali, locale } = useLanguage();
@@ -26,24 +61,29 @@ export default function ResultsPage() {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
-    resolver: zodResolver(resultLookupSchema),
-    defaultValues: { studentId: '', examId: '', dateOfBirth: '' },
+    resolver: zodResolver(lookupSchema),
+    defaultValues: { examId: '', roll: '', mobile: '' },
   });
 
-  // Fetch published exams for dropdown
+  // Published exams for the dropdown (API returns { items: [...] })
   const {
-    data: exams,
+    data: examsRaw,
     execute: fetchExams,
     isLoading: examsLoading,
-  } = useApi<Exam[]>('get', '/api/results/exams/published');
+  } = useApi<PublishedExam[] | { items: PublishedExam[] }>('get', '/api/results/exams/published');
+
+  const exams: PublishedExam[] | null = examsRaw
+    ? Array.isArray(examsRaw)
+      ? examsRaw
+      : examsRaw.items ?? []
+    : null;
 
   useEffect(() => {
     fetchExams();
   }, [fetchExams]);
 
-  // Lookup result
   const { data: result, isLoading, isWaking, error, execute } =
-    useApi<Result>('post', '/api/results/lookup');
+    useApi<PublicResult>('post', '/api/results/lookup');
 
   const onSubmit = async (formData: FormData) => {
     setHasSearched(true);
@@ -58,9 +98,11 @@ export default function ResultsPage() {
     <>
       <SEOHead
         title={isBengali ? 'ফলাফল' : 'Results'}
-        description={isBengali
-          ? 'আপনার পরীক্ষার ফলাফল দেখুন — স্টুডেন্ট আইডি ও জন্মতারিখ দিন।'
-          : 'Check your exam results — enter Student ID and date of birth.'}
+        description={
+          isBengali
+            ? 'আপনার পরীক্ষার ফলাফল দেখুন — রোল নম্বর ও অভিভাবকের মোবাইল নম্বর দিন।'
+            : 'Check your exam results — enter roll number and guardian mobile number.'
+        }
         canonical="/results"
       />
 
@@ -72,7 +114,9 @@ export default function ResultsPage() {
           </h1>
           <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-gold" />
           <p className="mt-3 text-sm text-white/70">
-            {t('results.subtitle')}
+            {isBengali
+              ? 'পরীক্ষা নির্বাচন করে রোল নম্বর ও অভিভাবকের মোবাইল নম্বর দিন'
+              : 'Select the exam, then enter roll number and guardian mobile number'}
           </p>
         </div>
       </section>
@@ -81,97 +125,85 @@ export default function ResultsPage() {
       <section className="container-page py-8 md:py-12">
         <div className="mx-auto max-w-lg">
           <form onSubmit={handleSubmit(onSubmit)} className="card space-y-5">
-            {/* Student ID */}
-            <div>
-              <label className="label">
-                {t('results.studentId')} <span className="text-error">*</span>
-              </label>
-              <input
-                {...register('studentId')}
-                type="text"
-                className="input-field"
-                placeholder="TLFS-STU-2025-0001"
-              />
-              {errors.studentId && (
-                <p className="error-text">{errors.studentId.message}</p>
-              )}
-            </div>
-
-            {/* Exam Dropdown */}
+            {/* Exam */}
             <div>
               <label className="label">
                 {t('results.exam')} <span className="text-error">*</span>
               </label>
-              <select
-                {...register('examId')}
-                className="input-field"
-                disabled={examsLoading}
-              >
+              <select {...register('examId')} className="input-field" disabled={examsLoading}>
                 <option value="">{t('results.selectExam')}</option>
                 {exams?.map((exam) => (
                   <option key={exam.id} value={exam.id}>
-                    {isBengali ? exam.nameBn : exam.name}
+                    {exam.name}
                   </option>
                 ))}
               </select>
-              {errors.examId && (
-                <p className="error-text">{errors.examId.message}</p>
-              )}
+              {errors.examId && <p className="error-text">{errors.examId.message}</p>}
               {!examsLoading && exams && exams.length === 0 && (
-                <p className="mt-1 text-xs text-ink-light">
-                  {t('results.noPublished')}
-                </p>
+                <p className="mt-1 text-xs text-ink-light">{t('results.noPublished')}</p>
               )}
             </div>
 
-            {/* Date of Birth */}
+            {/* Roll */}
             <div>
               <label className="label">
-                {t('results.dob')} <span className="text-error">*</span>
+                {isBengali ? 'রোল নম্বর' : 'Roll Number'} <span className="text-error">*</span>
               </label>
               <input
-                {...register('dateOfBirth')}
-                type="date"
+                {...register('roll')}
+                type="text"
+                inputMode="numeric"
                 className="input-field"
+                placeholder="1"
               />
-              {errors.dateOfBirth && (
-                <p className="error-text">{errors.dateOfBirth.message}</p>
-              )}
+              {errors.roll && <p className="error-text">{errors.roll.message}</p>}
             </div>
 
-            {/* Submit */}
+            {/* Mobile */}
+            <div>
+              <label className="label">
+                {isBengali ? 'অভিভাবকের মোবাইল নম্বর' : 'Guardian Mobile Number'}{' '}
+                <span className="text-error">*</span>
+              </label>
+              <input
+                {...register('mobile')}
+                type="tel"
+                className="input-field"
+                placeholder="01XXXXXXXXX"
+              />
+              {errors.mobile && <p className="error-text">{errors.mobile.message}</p>}
+            </div>
+
             <button
               type="submit"
               disabled={isSubmitting || isLoading}
               className="btn-primary w-full"
             >
-              {isLoading ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Search size={16} />
-              )}
+              {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
               {t('results.lookup')}
             </button>
           </form>
 
-          {/* Server waking */}
           {isWaking && <ServerWaking onRetry={handleRetry} />}
 
-          {/* Error */}
           {hasSearched && error && !isWaking && (
             <div className="mt-6 rounded-xl border border-error/20 bg-error/5 p-6 text-center">
-              <p className="text-sm font-medium text-error">
-                {t('results.notFound')}
-              </p>
+              <p className="text-sm font-medium text-error">{t('results.notFound')}</p>
             </div>
           )}
 
           {/* Marksheet */}
-          {result && !error && (
+          {result && !error && Array.isArray(result.subjects) && (
             <div className="mt-6 card">
-              <h2 className="mb-4 text-lg font-bold text-navy font-bengali">
+              <h2 className="mb-1 text-lg font-bold text-navy font-bengali">
                 {t('results.marksheet')}
               </h2>
+              <p className="mb-4 text-sm text-ink-light">
+                {result.exam?.name} — {result.student?.name}
+                {result.student?.roll !== undefined && result.student?.roll !== null
+                  ? ` (${isBengali ? 'রোল' : 'Roll'} ${result.student.roll})`
+                  : ''}
+              </p>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -195,36 +227,24 @@ export default function ResultsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {result.marks.map((m) => (
-                      <tr key={m.subjectId}>
-                        <td className="px-3 py-2 font-medium text-ink">
-                          {m.subjectName}
-                        </td>
-                        <td className="px-3 py-2 text-center text-ink-light">
-                          {m.fullMarks}
-                        </td>
+                    {result.subjects.map((m) => (
+                      <tr key={m.name}>
+                        <td className="px-3 py-2 font-medium text-ink">{m.name}</td>
+                        <td className="px-3 py-2 text-center text-ink-light">{m.fullMarks}</td>
                         <td className="px-3 py-2 text-center font-semibold text-navy">
-                          {m.obtained}
+                          {m.marks === null ? (isBengali ? 'অনুপস্থিত' : 'Absent') : m.marks}
                         </td>
                         <td className="px-3 py-2 text-center">{m.grade}</td>
-                        <td className="px-3 py-2 text-center">
-                          {formatGPA(m.gpa, locale)}
-                        </td>
+                        <td className="px-3 py-2 text-center">{formatGPA(m.gradePoint, locale)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-navy bg-surface font-semibold">
                       <td className="px-3 py-2 text-navy">{t('results.total')}</td>
-                      <td className="px-3 py-2 text-center text-ink">
-                        {result.totalFull}
-                      </td>
-                      <td className="px-3 py-2 text-center text-navy">
-                        {result.totalObtained}
-                      </td>
-                      <td className="px-3 py-2 text-center text-navy">
-                        {result.grade}
-                      </td>
+                      <td className="px-3 py-2 text-center text-ink">{result.fullTotal}</td>
+                      <td className="px-3 py-2 text-center text-navy">{result.total}</td>
+                      <td className="px-3 py-2 text-center text-navy">{result.grade}</td>
                       <td className="px-3 py-2 text-center text-navy">
                         {formatGPA(result.gpa, locale)}
                       </td>
@@ -242,12 +262,8 @@ export default function ResultsPage() {
 
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-ink-light">{t('results.result')}</span>
-                <span
-                  className={`font-bold ${
-                    result.isPassed ? 'text-success' : 'text-error'
-                  }`}
-                >
-                  {result.isPassed ? t('results.pass') : t('results.fail')}
+                <span className={`font-bold ${result.passed ? 'text-success' : 'text-error'}`}>
+                  {result.passed ? t('results.pass') : t('results.fail')}
                 </span>
               </div>
             </div>
@@ -256,4 +272,4 @@ export default function ResultsPage() {
       </section>
     </>
   );
-  }
+    }
