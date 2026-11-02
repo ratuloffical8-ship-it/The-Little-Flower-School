@@ -9,6 +9,8 @@ import {
   BookOpen,
   ClipboardCheck,
   CalendarCheck,
+  CalendarDays,
+  UserCheck,
   FileCheck,
   Award,
   DollarSign,
@@ -57,6 +59,8 @@ const MENU_ITEMS: MenuItem[] = [
   { path: '/admine/classes', labelBn: 'শ্রেণি ও সেকশন', labelEn: 'Classes', icon: <BookOpen size={18} />, roles: ['super_admin', 'school_admin', 'teacher'] },
   { path: '/admine/teachers', labelBn: 'শিক্ষক ও কর্মচারী', labelEn: 'Teachers', icon: <GraduationCap size={18} />, roles: ['super_admin', 'school_admin'] },
   { path: '/admine/attendance', labelBn: 'উপস্থিতি', labelEn: 'Attendance', icon: <CalendarCheck size={18} />, roles: ['super_admin', 'school_admin', 'teacher'] },
+  { path: '/admine/my-attendance', labelBn: 'আমার হাজিরা', labelEn: 'My Attendance', icon: <UserCheck size={18} />, roles: ['super_admin', 'school_admin', 'teacher'] },
+  { path: '/admine/teacher-attendance', labelBn: 'শিক্ষক হাজিরা', labelEn: 'Teacher Attendance', icon: <CalendarDays size={18} />, roles: ['super_admin', 'school_admin'] },
   { path: '/admine/exams', labelBn: 'পরীক্ষা', labelEn: 'Exams', icon: <ClipboardCheck size={18} />, roles: ['super_admin', 'school_admin', 'teacher'] },
   { path: '/admine/results', labelBn: 'ফলাফল', labelEn: 'Results', icon: <Award size={18} />, roles: ['super_admin', 'school_admin', 'teacher'] },
   { path: '/admine/fees', labelBn: 'ফি ও ইনভয়েস', labelEn: 'Fees', icon: <DollarSign size={18} />, roles: ['super_admin', 'school_admin', 'accountant'] },
@@ -196,4 +200,4 @@ export default function AdminLayout() {
       </div>
     </div>
   );
-    }
+  }
