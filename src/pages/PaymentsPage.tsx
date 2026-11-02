@@ -1,26 +1,40 @@
 // src/pages/PaymentsPage.tsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2, AlertTriangle, CheckCircle, Copy } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
-import { useApi } from '@/hooks/useApi';
+import { api, ApiRequestError } from '@/lib/api';
 import SEOHead from '@/components/SEOHead';
 import ServerWaking from '@/components/ServerWaking';
 import FileUpload from '@/components/FileUpload';
 import { paymentSubmissionSchema } from '@/utils/validation';
 import { MAX_SCREENSHOT_SIZE, ALLOWED_IMAGE_TYPES } from '@/utils/validation';
-import type { PaymentSubmissionRequest } from '@/types/payment';
 
-type FormData = PaymentSubmissionRequest & {
-  screenshot: File[];
+type FormData = {
+  studentId: string;
+  mobile: string;
+  senderNumber: string;
+  provider: 'bkash' | 'nagad';
+  trxId: string;
+  amount: number;
 };
+
+interface PublicSettingsResponse {
+  item?: { bkashNumber?: string; nagadNumber?: string };
+}
+
+const isPlaceholder = (n?: string) => !n || /X/i.test(n);
 
 export default function PaymentsPage() {
   const { t, isBengali } = useLanguage();
   const [submitted, setSubmitted] = useState(false);
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isWaking, setIsWaking] = useState(false);
+  const [bkash, setBkash] = useState('');
+  const [nagad, setNagad] = useState('');
 
   const {
     register,
@@ -30,25 +44,62 @@ export default function PaymentsPage() {
   } = useForm<FormData>({
     resolver: zodResolver(paymentSubmissionSchema),
     defaultValues: {
-      studentIdOrApplicationId: '',
-      guardianMobile: '',
-      payerMobile: '',
+      studentId: '',
+      mobile: '',
+      senderNumber: '',
       provider: 'bkash',
-      transactionId: '',
-      amount: 0,
-      purpose: '',
+      trxId: '',
+      amount: undefined as unknown as number,
     },
   });
 
-  const { isWaking, error, execute } =
-    useApi('post', '/api/payments/submit');
+  // Real bKash / Nagad numbers come from the admin settings
+  useEffect(() => {
+    api
+      .get<PublicSettingsResponse>('/api/settings/public', { noAuth: true })
+      .then((r) => {
+        setBkash(r.item?.bkashNumber ?? '');
+        setNagad(r.item?.nagadNumber ?? '');
+      })
+      .catch(() => undefined);
+  }, []);
 
   const onSubmit = async (data: FormData) => {
-    const { screenshot, ...payload } = data;
-    await execute(payload);
-    setSubmitted(true);
-    reset();
-    setScreenshotFiles([]);
+    setSubmitError(null);
+    setIsWaking(false);
+    try {
+      const body = new window.FormData();
+      body.append('studentId', data.studentId.trim());
+      body.append('mobile', data.mobile);
+      body.append('senderNumber', data.senderNumber);
+      body.append('provider', data.provider);
+      body.append('trxId', data.trxId.trim());
+      body.append('amount', String(data.amount));
+      if (screenshotFiles[0]) body.append('screenshot', screenshotFiles[0]);
+
+      const res = await api.uploadFile<{ success?: boolean }>('/api/payments/submit', body, {
+        noAuth: true,
+      });
+      if (res && res.success === false) throw new Error('Submit failed');
+
+      setSubmitted(true);
+      reset();
+      setScreenshotFiles([]);
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        const waking = err.apiError.code === 'SERVER_WAKING' || [502, 503, 504].includes(err.apiError.status ?? 0);
+        setIsWaking(waking);
+        setSubmitError(err.apiError.message);
+      } else {
+        setSubmitError(
+          err instanceof Error
+            ? err.message
+            : isBengali
+            ? 'জমা দিতে সমস্যা হয়েছে। আবার চেষ্টা করুন।'
+            : 'Could not submit. Please try again.',
+        );
+      }
+    }
   };
 
   const copyToClipboard = (text: string, field: string) => {
@@ -127,10 +178,10 @@ export default function PaymentsPage() {
                 <p className="text-sm font-semibold text-navy">bKash</p>
                 <div className="mt-2 flex items-center gap-2">
                   <code className="flex-1 rounded bg-surface px-3 py-2 text-sm font-mono text-ink">
-                    {t('common.editableSample')}
+                    {isPlaceholder(bkash) ? t('common.editableSample') : bkash}
                   </code>
                   <button
-                    onClick={() => copyToClipboard('01XXXXXXXXX', 'bkash')}
+                    onClick={() => copyToClipboard(bkash, 'bkash')}
                     className="rounded p-1.5 text-ink-light hover:bg-surface"
                     title={t('common.copy')}
                   >
@@ -147,10 +198,10 @@ export default function PaymentsPage() {
                 <p className="text-sm font-semibold text-navy">Nagad</p>
                 <div className="mt-2 flex items-center gap-2">
                   <code className="flex-1 rounded bg-surface px-3 py-2 text-sm font-mono text-ink">
-                    {t('common.editableSample')}
+                    {isPlaceholder(nagad) ? t('common.editableSample') : nagad}
                   </code>
                   <button
-                    onClick={() => copyToClipboard('01XXXXXXXXX', 'nagad')}
+                    onClick={() => copyToClipboard(nagad, 'nagad')}
                     className="rounded p-1.5 text-ink-light hover:bg-surface"
                     title={t('common.copy')}
                   >
@@ -184,13 +235,13 @@ export default function PaymentsPage() {
                 {t('payments.studentId')} <span className="text-error">*</span>
               </label>
               <input
-                {...register('studentIdOrApplicationId')}
+                {...register('studentId')}
                 type="text"
                 className="input-field"
                 placeholder="TLFS-STU-2025-0001"
               />
-              {errors.studentIdOrApplicationId && (
-                <p className="error-text">{errors.studentIdOrApplicationId.message}</p>
+              {errors.studentId && (
+                <p className="error-text">{errors.studentId.message}</p>
               )}
             </div>
 
@@ -200,13 +251,13 @@ export default function PaymentsPage() {
                 {t('admission.guardianMobile')} <span className="text-error">*</span>
               </label>
               <input
-                {...register('guardianMobile')}
+                {...register('mobile')}
                 type="tel"
                 className="input-field"
                 placeholder="01XXXXXXXXX"
               />
-              {errors.guardianMobile && (
-                <p className="error-text">{errors.guardianMobile.message}</p>
+              {errors.mobile && (
+                <p className="error-text">{errors.mobile.message}</p>
               )}
             </div>
 
@@ -216,13 +267,13 @@ export default function PaymentsPage() {
                 {t('payments.payerMobile')} <span className="text-error">*</span>
               </label>
               <input
-                {...register('payerMobile')}
+                {...register('senderNumber')}
                 type="tel"
                 className="input-field"
                 placeholder="01XXXXXXXXX"
               />
-              {errors.payerMobile && (
-                <p className="error-text">{errors.payerMobile.message}</p>
+              {errors.senderNumber && (
+                <p className="error-text">{errors.senderNumber.message}</p>
               )}
             </div>
 
@@ -234,8 +285,6 @@ export default function PaymentsPage() {
               <select {...register('provider')} className="input-field">
                 <option value="bkash">bKash</option>
                 <option value="nagad">Nagad</option>
-                <option value="cash">{isBengali ? 'নগদ' : 'Cash'}</option>
-                <option value="bank">{isBengali ? 'ব্যাংক' : 'Bank'}</option>
               </select>
             </div>
 
@@ -245,13 +294,13 @@ export default function PaymentsPage() {
                 {t('payments.transactionId')} <span className="text-error">*</span>
               </label>
               <input
-                {...register('transactionId')}
+                {...register('trxId')}
                 type="text"
                 className="input-field"
                 placeholder="ABC123XYZ"
               />
-              {errors.transactionId && (
-                <p className="error-text">{errors.transactionId.message}</p>
+              {errors.trxId && (
+                <p className="error-text">{errors.trxId.message}</p>
               )}
             </div>
 
@@ -269,22 +318,6 @@ export default function PaymentsPage() {
               />
               {errors.amount && (
                 <p className="error-text">{errors.amount.message}</p>
-              )}
-            </div>
-
-            {/* Purpose */}
-            <div>
-              <label className="label">
-                {t('payments.purpose')} <span className="text-error">*</span>
-              </label>
-              <input
-                {...register('purpose')}
-                type="text"
-                className="input-field"
-                placeholder={isBengali ? 'মাসিক টিউশন ফি — জানুয়ারি ২০২৫' : 'Monthly tuition — January 2025'}
-              />
-              {errors.purpose && (
-                <p className="error-text">{errors.purpose.message}</p>
               )}
             </div>
 
@@ -316,8 +349,8 @@ export default function PaymentsPage() {
             </button>
 
             {/* Error */}
-            {error && !isWaking && (
-              <p className="text-center text-sm text-error">{error}</p>
+            {submitError && !isWaking && (
+              <p className="text-center text-sm text-error">{submitError}</p>
             )}
           </form>
 
@@ -326,4 +359,4 @@ export default function PaymentsPage() {
       </section>
     </>
   );
-      }
+}
