@@ -1,6 +1,7 @@
 // server/src/services/storage.service.ts
 import path from 'path';
 import { env } from '../config/env';
+import { HttpError } from '../utils/errors';
 
 /**
  * ImgBB storage service (free, no credit card).
@@ -32,10 +33,9 @@ export interface UploadResult {
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3 MB
 
+/** HttpError: the error handler shows its message (a plain Error would become a hidden 500). */
 function fail(message: string, status = 400): never {
-  const err = new Error(message);
-  (err as Error & { status: number }).status = status;
-  throw err;
+  throw new HttpError(status, message);
 }
 
 function safeName(input: UploadInput): string {
