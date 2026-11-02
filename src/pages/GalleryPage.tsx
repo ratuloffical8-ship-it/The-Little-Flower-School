@@ -7,15 +7,41 @@ import SEOHead from '@/components/SEOHead';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import ServerWaking from '@/components/ServerWaking';
 import EmptyState from '@/components/EmptyState';
-import type { GalleryItem } from '@/types';
+
+interface GalleryApiItem {
+  id: string;
+  imageUrl?: string;
+  imagePath?: string;
+  captionBn?: string;
+  captionEn?: string;
+  category?: string;
+}
+
+interface GalleryItem {
+  id: string;
+  title: string;
+  caption?: string;
+  category: string;
+  imagePath: string;
+}
 
 export default function GalleryPage() {
   const { t, isBengali } = useLanguage();
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
 
-  const { data: items, isLoading, isWaking, error, execute } =
-    useApi<GalleryItem[]>('get', '/api/gallery/published');
+  const { data: raw, isLoading, isWaking, error, execute } =
+    useApi<GalleryApiItem[] | { items: GalleryApiItem[] }>('get', '/api/gallery/published');
+
+  const items: GalleryItem[] | null = raw
+    ? (Array.isArray(raw) ? raw : raw.items ?? []).map((i) => ({
+        id: i.id,
+        title: (isBengali ? i.captionBn || i.captionEn : i.captionEn || i.captionBn) || '',
+        caption: undefined,
+        category: i.category || 'general',
+        imagePath: i.imageUrl || i.imagePath || '',
+      }))
+    : null;
 
   useEffect(() => {
     execute();
@@ -228,4 +254,4 @@ export default function GalleryPage() {
       </section>
     </>
   );
-      }
+}
