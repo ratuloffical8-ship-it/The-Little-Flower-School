@@ -62,6 +62,18 @@ const NAV: NavGroup[] = [
         roles: ['super_admin', 'school_admin', 'teacher'],
       },
       {
+        to: '/admine/my-attendance',
+        bn: 'আমার হাজিরা',
+        en: 'My attendance',
+        roles: ['super_admin', 'school_admin', 'teacher'],
+      },
+      {
+        to: '/admine/teacher-attendance',
+        bn: 'শিক্ষক হাজিরা',
+        en: 'Teacher attendance',
+        roles: ['super_admin', 'school_admin'],
+      },
+      {
         to: '/admine/exams',
         bn: 'পরীক্ষা ও ফলাফল',
         en: 'Exams & results',
@@ -195,4 +207,4 @@ export default function AdminSidebar({ open, onClose }: AdminSidebarProps) {
       </aside>
     </>
   );
-    }
+          }
