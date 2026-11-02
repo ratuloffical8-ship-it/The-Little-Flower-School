@@ -19,6 +19,8 @@ export interface AttendanceRecord {
   id: string;
   studentId: string;
   date: string; // YYYY-MM-DD
+  /** YYYY-MM (lets the calendar load a whole month with one equality query) */
+  month?: string;
   classId: string;
   sessionId: string;
   status: AttendanceStatus;
@@ -116,6 +118,7 @@ export async function markAttendance(
         {
           studentId: r.studentId,
           date,
+          month: date.slice(0, 7),
           classId,
           sessionId,
           status: r.status,
@@ -132,23 +135,37 @@ export async function markAttendance(
   return { saved: records.length };
 }
 
+/** One class, one calendar month → every student's record for every marked day. */
+export async function getClassMonth(
+  classId: string,
+  month: string,
+): Promise<AttendanceRecord[]> {
+  // Two equality filters: no composite index needed.
+  const snap = await db
+    .collection(ATTENDANCE_COLLECTION)
+    .where('classId', '==', classId)
+    .where('month', '==', month)
+    .get();
+
+  return snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<AttendanceRecord, 'id'>) }))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.studentId.localeCompare(b.studentId));
+}
+
 export async function getStudentAttendance(
   studentId: string,
   from: string,
   to: string,
 ): Promise<{ items: AttendanceRecord[]; summary: AttendanceSummary }> {
-  // Needs composite index: studentId asc + date asc
+  // Single equality query + in-memory date filter: no composite index needed.
   const snap = await db
     .collection(ATTENDANCE_COLLECTION)
     .where('studentId', '==', studentId)
-    .where('date', '>=', from)
-    .where('date', '<=', to)
-    .orderBy('date', 'asc')
     .get();
 
-  const items = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<AttendanceRecord, 'id'>),
-  }));
+  const items = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<AttendanceRecord, 'id'>) }))
+    .filter((r) => r.date >= from && r.date <= to)
+    .sort((a, b) => a.date.localeCompare(b.date));
   return { items, summary: summarizeAttendance(items) };
-                                 }
+                             }
