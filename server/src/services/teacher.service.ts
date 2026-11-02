@@ -43,8 +43,9 @@ function toRecord(doc: FirebaseFirestore.DocumentSnapshot): TeacherRecord {
 export async function listTeachers(isActive?: boolean): Promise<TeacherRecord[]> {
   let q: FirebaseFirestore.Query = db.collection(COL);
   if (isActive !== undefined) q = q.where('isActive', '==', isActive);
-  const snap = await q.orderBy('name').limit(500).get();
-  return snap.docs.map(toRecord);
+  // Sorted in memory: no Firestore composite index needed.
+  const snap = await q.limit(500).get();
+  return snap.docs.map(toRecord).sort((a, b) => String(a.name).localeCompare(String(b.name)));
 }
 
 export async function getTeacherById(id: string): Promise<TeacherRecord | null> {
@@ -86,4 +87,4 @@ export async function deleteTeacher(id: string): Promise<void> {
   const doc = await ref.get();
   if (!doc.exists) throw notFound('Teacher not found');
   await ref.delete();
-    }
+                                           }
