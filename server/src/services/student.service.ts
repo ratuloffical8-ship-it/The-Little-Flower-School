@@ -72,16 +72,26 @@ export async function listStudents(
   if (classId) q = q.where('classId', '==', classId);
   if (sessionId) q = q.where('sessionId', '==', sessionId);
   if (isActive !== undefined) q = q.where('isActive', '==', isActive);
+
+  // Filter / sort / paginate in memory: no Firestore composite index needed.
+  const snap = await q.get();
+  let items = snap.docs.map(toRecord);
+
   if (search) {
-    const s = search.toUpperCase();
-    q = q.where('studentId', '>=', s).where('studentId', '<=', s + '\uf8ff');
+    const s = search.trim().toLowerCase();
+    items = items.filter(
+      (x) =>
+        String(x.studentId ?? '').toLowerCase().includes(s) ||
+        String(x.name ?? x.nameBn ?? x.nameEn ?? '').toLowerCase().includes(s) ||
+        String(x.roll ?? '') === s,
+    );
   }
-  q = q.orderBy('studentId');
 
-  const total = (await q.count().get()).data().count;
-  const snap = await q.offset((page - 1) * pageSize).limit(pageSize).get();
+  items.sort((a, b) => String(a.studentId ?? '').localeCompare(String(b.studentId ?? '')));
+  const total = items.length;
+  const start = (page - 1) * pageSize;
 
-  return { items: snap.docs.map(toRecord), total, page, pageSize };
+  return { items: items.slice(start, start + pageSize), total, page, pageSize };
 }
 
 export async function getStudentById(id: string): Promise<StudentRecord | null> {
@@ -142,4 +152,4 @@ export async function deactivateStudent(id: string): Promise<void> {
   const doc = await ref.get();
   if (!doc.exists) throw notFound('Student not found');
   await ref.update({ isActive: false, updatedAt: FieldValue.serverTimestamp() });
-}
+                             }
