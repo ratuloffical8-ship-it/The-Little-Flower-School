@@ -9,7 +9,7 @@ import { useApi, useApiGet } from '../../../hooks/useApi';
 /* ── Types ── */
 
 type AttStatus = 'present' | 'absent' | 'late' | 'leave';
-type LogStatus = 'completed' | 'partial' | 'not_taken';
+type LogStatus = 'assigned' | 'completed' | 'partial' | 'not_taken';
 
 interface Teacher {
   id: string;
@@ -79,6 +79,7 @@ const ATT_META: Record<
 };
 
 const LOG_META: Record<LogStatus, { bn: string; en: string; pill: string }> = {
+  assigned: { bn: 'বাকি', en: 'To do', pill: 'bg-blue-100 text-blue-800' },
   completed: { bn: 'সম্পূর্ণ', en: 'Completed', pill: 'bg-green-100 text-green-800' },
   partial: { bn: 'আংশিক', en: 'Partial', pill: 'bg-amber-100 text-amber-800' },
   not_taken: { bn: 'নেওয়া হয়নি', en: 'Not taken', pill: 'bg-red-100 text-red-800' },
@@ -148,6 +149,15 @@ export default function TeacherAttendancePage() {
   const classesRes = useApiGet<{ items?: ClassOption[] } | ClassOption[]>('/api/classes', []);
 
   const markApi = useApi<{ success: boolean; saved?: number }>('POST');
+  const assignApi = useApi<{ success: boolean }>('POST');
+
+  // Assign classes to teachers (today or a future date)
+  const [assignDate, setAssignDate] = useState(today);
+  const [assign, setAssign] = useState({ teacherId: '', classId: '', subject: '', period: '' });
+  const dayLogsRes = useApiGet<{ items: ClassLog[] }>(
+    tab === 'day' ? `/api/attendance/teachers/classes?date=${assignDate}` : '',
+    [tab, assignDate],
+  );
   const delApi = useApi<{ success: boolean }>('DELETE');
 
   const teachers = useMemo(
@@ -187,6 +197,39 @@ export default function TeacherAttendancePage() {
     setMsg(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teachers, existingByTeacher, date]);
+
+  async function saveAssign() {
+    setMsg(null);
+    if (!assign.teacherId || !assign.classId || !assign.subject.trim()) {
+      setMsg({ type: 'err', text: tr('শিক্ষক, শ্রেণি ও বিষয় বেছে নিন।', 'Choose the teacher, class and subject.') });
+      return;
+    }
+    try {
+      await assignApi.execute('/api/attendance/teachers/classes', {
+        teacherId: assign.teacherId,
+        date: assignDate,
+        classId: assign.classId,
+        subject: assign.subject.trim(),
+        period: assign.period ? Number(assign.period) : undefined,
+        status: 'assigned',
+      });
+      setAssign({ ...assign, classId: '', period: '' });
+      setMsg({ type: 'ok', text: tr('ক্লাস বরাদ্দ হয়েছে।', 'Class assigned.') });
+      await dayLogsRes.execute();
+    } catch (e) {
+      setMsg({ type: 'err', text: e instanceof Error ? e.message : tr('ব্যর্থ হয়েছে।', 'Failed.') });
+    }
+  }
+
+  async function removeDayLog(id: string) {
+    if (!window.confirm(tr('এই ক্লাস মুছবেন?', 'Delete this class?'))) return;
+    try {
+      await delApi.execute(`/api/attendance/teachers/classes/${id}`);
+      await dayLogsRes.execute();
+    } catch (e) {
+      setMsg({ type: 'err', text: e instanceof Error ? e.message : tr('ব্যর্থ হয়েছে।', 'Failed.') });
+    }
+  }
 
   function markAllUnset(status: AttStatus) {
     const next = { ...draft };
@@ -419,6 +462,119 @@ export default function TeacherAttendancePage() {
                   </li>
                 );
               })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* ───────── Assign classes ───────── */}
+      {tab === 'day' && (
+        <div className="card space-y-4">
+          <div>
+            <h2 className="text-base font-bold text-navy">{tr('ক্লাস বরাদ্দ', 'Assign classes')}</h2>
+            <p className="text-xs text-ink/60">
+              {tr(
+                'কোন শিক্ষক কোন দিন কোন শ্রেণিতে কোন বিষয় নেবেন তা ঠিক করুন। শিক্ষক নিজের পেইজে দেখে "সম্পূর্ণ / আংশিক / নেওয়া হয়নি" জানাবেন।',
+                'Decide which teacher takes which subject in which class. The teacher reports the result on their own page.',
+              )}
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-5">
+            <div>
+              <label className="label">{tr('তারিখ', 'Date')}</label>
+              <input
+                type="date"
+                value={assignDate}
+                onChange={(e) => e.target.value && setAssignDate(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="label">{tr('শিক্ষক', 'Teacher')}</label>
+              <select
+                value={assign.teacherId}
+                onChange={(e) => {
+                  const t = teachers.find((x) => x.id === e.target.value);
+                  setAssign({ ...assign, teacherId: e.target.value, subject: assign.subject || t?.subject || '' });
+                }}
+                className="input-field"
+              >
+                <option value="">{tr('নির্বাচন করুন', 'Select')}</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">{tr('শ্রেণি', 'Class')}</label>
+              <select
+                value={assign.classId}
+                onChange={(e) => setAssign({ ...assign, classId: e.target.value })}
+                className="input-field"
+              >
+                <option value="">{tr('নির্বাচন করুন', 'Select')}</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {isBengali ? c.nameBn : c.nameEn}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">{tr('বিষয়', 'Subject')}</label>
+              <input
+                type="text"
+                value={assign.subject}
+                onChange={(e) => setAssign({ ...assign, subject: e.target.value })}
+                className="input-field"
+                maxLength={80}
+              />
+            </div>
+            <div>
+              <label className="label">{tr('পিরিয়ড', 'Period')}</label>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                value={assign.period}
+                onChange={(e) => setAssign({ ...assign, period: e.target.value })}
+                className="input-field"
+              />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={saveAssign}
+            disabled={assignApi.isLoading}
+            className="btn-primary disabled:opacity-50"
+          >
+            {assignApi.isLoading ? tr('সংরক্ষণ হচ্ছে…', 'Saving…') : tr('ক্লাস বরাদ্দ করুন', 'Assign class')}
+          </button>
+
+          {(dayLogsRes.data?.items ?? []).length > 0 && (
+            <ul className="divide-y divide-surface border-t border-surface">
+              {(dayLogsRes.data?.items ?? []).map((l) => (
+                <li key={l.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <span>
+                    <span className="font-medium">{teacherName(l.teacherId)}</span>
+                    {' — '}
+                    {className(l.classId)} — {l.subject}
+                    {l.period ? ` (${tr('পিরিয়ড', 'P')} ${num(l.period)})` : ''}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className={'rounded-full px-2 py-0.5 text-xs font-medium ' + LOG_META[l.status].pill}>
+                      {tr(LOG_META[l.status].bn, LOG_META[l.status].en)}
+                    </span>
+                    <button type="button" onClick={() => removeDayLog(l.id)} className="text-xs text-red-600 hover:underline">
+                      {tr('মুছুন', 'Delete')}
+                    </button>
+                  </span>
+                </li>
+              ))}
             </ul>
           )}
         </div>
