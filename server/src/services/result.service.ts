@@ -41,7 +41,9 @@ export interface ResultEntryInput {
 
 export interface LookupResultInput {
   examId: string;
-  studentId: string;
+  /** Class roll number (unique inside the exam's class) */
+  roll: string | number;
+  /** Guardian mobile number */
   mobile: string;
 }
 
@@ -182,23 +184,35 @@ export async function deleteResult(examId: string, studentId: string): Promise<v
 }
 
 /**
- * Public lookup. Multi-factor: studentId + guardian mobile, exam must be published.
+ * Public lookup. Multi-factor: exam + class roll + guardian mobile; exam must be published.
+ * The exam decides the class, so a roll number is unique there.
  * Every failure path returns the same generic 404 to avoid leaking what exists.
  */
 export async function lookupPublishedResult(input: LookupResultInput): Promise<PublicResult> {
-  const [exam, student] = await Promise.all([
-    getExamById(input.examId),
-    findStudentByStudentId(input.studentId),
-  ]);
+  const exam = await getExamById(input.examId);
+  if (!exam || !exam.published) throw notFound(GENERIC_MISMATCH);
 
-  if (!exam || !exam.published || !student) throw notFound(GENERIC_MISMATCH);
-  if (student.classId !== exam.classId) throw notFound(GENERIC_MISMATCH);
-
+  const rollNum = Number(String(input.roll).replace(/\D/g, ''));
   const given = normalizeMobile(input.mobile);
-  const stored = normalizeMobile(student.guardian?.mobile);
-  if (!given || given !== stored) throw notFound(GENERIC_MISMATCH);
+  if (!Number.isFinite(rollNum) || rollNum < 1 || !given) throw notFound(GENERIC_MISMATCH);
 
-  const resolvedStudentId = (student as { studentId?: string }).studentId ?? input.studentId;
+  // Equality-only query: no composite index required
+  const snap = await db.collection(STUDENTS_COLLECTION).where('classId', '==', exam.classId).get();
+  const doc = snap.docs.find((d) => {
+    const x = d.data();
+    const sameRoll = Number(x.roll ?? x.rollNumber) === rollNum;
+    const sameSession = !exam.sessionId || !x.sessionId || x.sessionId === exam.sessionId;
+    return (
+      sameRoll &&
+      sameSession &&
+      x.isActive !== false &&
+      normalizeMobile((x.guardian as { mobile?: unknown } | undefined)?.mobile) === given
+    );
+  });
+  if (!doc) throw notFound(GENERIC_MISMATCH);
+
+  const student = doc.data();
+  const resolvedStudentId = String(student.studentId ?? doc.id);
   const result = await getResult(exam.id, resolvedStudentId);
   if (!result) throw notFound(GENERIC_MISMATCH);
 
@@ -206,9 +220,9 @@ export async function lookupPublishedResult(input: LookupResultInput): Promise<P
     exam: { id: exam.id, name: exam.name },
     student: {
       studentId: resolvedStudentId,
-      name: student.name,
-      classId: student.classId,
-      roll: (student as { roll?: string | number }).roll,
+      name: String(student.name ?? student.nameBn ?? student.nameEn ?? ''),
+      classId: String(student.classId ?? exam.classId),
+      roll: (student.roll ?? student.rollNumber) as string | number | undefined,
     },
     subjects: result.subjects,
     total: result.total,
@@ -218,4 +232,4 @@ export async function lookupPublishedResult(input: LookupResultInput): Promise<P
     grade: result.grade,
     passed: result.passed,
   };
-}
+    }
