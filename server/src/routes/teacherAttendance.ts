@@ -11,6 +11,7 @@ import {
   getTeacherDayOne,
   listLogsForDay,
   listLogsForMonth,
+  listLogsForDate,
   buildSummary,
   markTeacherDay,
   selfCheckIn,
@@ -39,7 +40,8 @@ import { badRequest, HttpError } from '../utils/errors';
  *    GET    /day?date=          all teachers' attendance of a day
  *    GET    /month?month=       everything for a month + per-teacher summary
  *    POST   /mark               mark attendance for teachers (e.g. no smartphone)
- *    POST   /classes            add a class log on behalf of a teacher
+ *    GET    /classes?date=      all teachers' classes of a day
+ *    POST   /classes            assign a class to a teacher (today or future) / add a log
  *    PUT    /classes/:id        edit any class log
  *    DELETE /classes/:id        delete any class log
  */
@@ -95,7 +97,7 @@ const logFields = {
   subject: z.string().trim().min(1).max(80),
   period: z.coerce.number().int().min(1).max(12).optional(),
   topic: z.string().trim().max(200).optional(),
-  status: z.enum(['completed', 'partial', 'not_taken']),
+  status: z.enum(['assigned', 'completed', 'partial', 'not_taken']),
   note: z.string().trim().max(300).optional(),
 };
 const myLogSchema = z.object({ date: isoDate.optional(), ...logFields });
@@ -238,12 +240,22 @@ router.post(
   }),
 );
 
+// GET /api/attendance/teachers/classes?date=YYYY-MM-DD → every teacher's classes of that day
+router.get(
+  '/classes',
+  adminOnly,
+  ah(async (req, res) => {
+    const { date } = parse(dayQuery, req.query);
+    res.json({ items: await listLogsForDate(date) });
+  }),
+);
+
+// Admin may assign classes for today OR a future date (status 'assigned').
 router.post(
   '/classes',
   adminOnly,
   ah(async (req, res) => {
     const body = parse(adminLogSchema, req.body);
-    assertNotFuture(body.date);
     const item = await createLog(body.teacherId, body.date, body, req.user!.uid);
     res.status(201).json({ success: true, item });
   }),
