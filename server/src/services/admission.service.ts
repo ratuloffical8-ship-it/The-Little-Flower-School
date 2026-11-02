@@ -183,6 +183,7 @@ export async function getApplicationById(
 // Admin: list (with filters + pagination)
 // ────────────────────────────────────────────────────────────────────
 export interface ListFilters {
+  search?: string;
   status?: AdmissionStatus;
   classApplyingFor?: string;
   sessionId?: string;
@@ -208,32 +209,42 @@ export async function listApplications(filters: ListFilters): Promise<{
     query = query.where('student.classApplyingFor', '==', filters.classApplyingFor);
   }
 
-  // Count total (expensive — consider aggregation in future)
-  const countSnap = await query.count().get();
-  const total = countSnap.data().count;
+  // Filter / search / sort / paginate in memory: no Firestore composite index needed
+  // (a school has a few hundred applications per year, so this is cheap).
+  const snap = await query.get();
+  let all: ApplicationRecord[] = snap.docs.map((doc) => {
+    const d = doc.data();
+    return {
+      id: doc.id,
+      applicationId: d.applicationId,
+      sessionId: d.sessionId,
+      student: d.student ?? {},
+      guardian: d.guardian ?? {},
+      documents: d.documents ?? {},
+      status: d.status,
+      correctionNote: d.correctionNote ?? '',
+      createdAt: (d.createdAt as any)?.toDate?.() ?? new Date(),
+      updatedAt: (d.updatedAt as any)?.toDate?.() ?? new Date(),
+    };
+  });
 
-  const items = await query
-    .orderBy('createdAt', 'desc')
-    .offset((filters.page - 1) * filters.pageSize)
-    .limit(filters.pageSize)
-    .get();
+  const q = (filters.search ?? '').trim().toLowerCase();
+  if (q) {
+    all = all.filter(
+      (a) =>
+        String(a.applicationId ?? '').toLowerCase().includes(q) ||
+        String(a.student?.nameBn ?? '').toLowerCase().includes(q) ||
+        String(a.student?.nameEn ?? '').toLowerCase().includes(q) ||
+        String(a.guardian?.mobile ?? '').includes(q),
+    );
+  }
+
+  all.sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime());
+  const total = all.length;
+  const start = (filters.page - 1) * filters.pageSize;
 
   return {
-    items: items.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        id: doc.id,
-        applicationId: d.applicationId,
-        sessionId: d.sessionId,
-        student: d.student ?? {},
-        guardian: d.guardian ?? {},
-        documents: d.documents ?? {},
-        status: d.status,
-        correctionNote: d.correctionNote ?? '',
-        createdAt: (d.createdAt as any)?.toDate?.() ?? new Date(),
-        updatedAt: (d.updatedAt as any)?.toDate?.() ?? new Date(),
-      };
-    }),
+    items: all.slice(start, start + filters.pageSize),
     total,
     page: filters.page,
     pageSize: filters.pageSize,
@@ -262,4 +273,4 @@ export async function updateStatus(
     }),
     updatedAt: FieldValue.serverTimestamp(),
   });
-                }
+        }
