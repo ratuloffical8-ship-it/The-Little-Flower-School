@@ -350,33 +350,53 @@ router.post(
       // Generate student ID
       const studentId = await generateId({ type: 'student', year });
 
-      // Create student record
-      await db.collection('students').doc().set({
-        studentId,
-        sessionId,
-        classId,
-        rollNumber: rollNumber ?? null,
-        nameBn: app.student.nameBn,
-        nameEn: app.student.nameEn,
-        dateOfBirth: app.student.dateOfBirth,
-        gender: app.student.gender,
-        religion: app.student.religion,
-        bloodGroup: app.student.bloodGroup,
-        photo: app.documents.photo ?? '',
-        guardian: {
-          fatherName: app.guardian.fatherName,
-          motherName: app.guardian.motherName,
-          guardianName: app.guardian.guardianName,
-          mobile: app.guardian.mobile,
-          email: app.guardian.email,
-          presentAddress: app.guardian.presentAddress,
-          permanentAddress: app.guardian.permanentAddress,
-        },
-        applicationId: app.applicationId,
-        isActive: true,
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      // Next free roll number in this class + session (unless admin gave one)
+      let roll: number | null = rollNumber ?? null;
+      if (roll === null) {
+        const mates = await db
+          .collection('students')
+          .where('classId', '==', classId)
+          .where('sessionId', '==', sessionId)
+          .get();
+        roll =
+          mates.docs.reduce((max, d) => {
+            const r = Number(d.data().roll);
+            return Number.isFinite(r) && r > max ? r : max;
+          }, 0) + 1;
+      }
+
+      // Create student record (doc id = studentId; same shape as the admin "add student" form)
+      await db
+        .collection('students')
+        .doc(studentId)
+        .set({
+          studentId,
+          sessionId,
+          classId,
+          roll,
+          name: app.student.nameBn || app.student.nameEn,
+          nameBn: app.student.nameBn ?? '',
+          nameEn: app.student.nameEn ?? '',
+          dateOfBirth: app.student.dateOfBirth ?? '',
+          gender: app.student.gender ?? '',
+          religion: app.student.religion ?? '',
+          bloodGroup: app.student.bloodGroup ?? '',
+          photo: app.documents.photo ?? '',
+          guardian: {
+            name: app.guardian.guardianName || app.guardian.fatherName,
+            fatherName: app.guardian.fatherName,
+            motherName: app.guardian.motherName,
+            guardianName: app.guardian.guardianName,
+            mobile: app.guardian.mobile,
+            email: app.guardian.email,
+            presentAddress: app.guardian.presentAddress,
+            permanentAddress: app.guardian.permanentAddress,
+          },
+          applicationId: app.applicationId,
+          isActive: true,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        });
 
       // Update application status
       const actor = req.user!.email ?? req.user!.uid;
