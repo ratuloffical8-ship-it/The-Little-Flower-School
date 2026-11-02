@@ -7,7 +7,7 @@ import { useApi, useApiGet } from '../../../hooks/useApi';
 /* ── Types ── */
 
 type AttStatus = 'present' | 'absent' | 'late' | 'leave';
-type LogStatus = 'completed' | 'partial' | 'not_taken';
+type LogStatus = 'assigned' | 'completed' | 'partial' | 'not_taken';
 
 interface TeacherLite {
   id: string;
@@ -93,6 +93,7 @@ const ATT_META: Record<AttStatus, { bn: string; en: string; pill: string; solid:
 };
 
 const LOG_META: Record<LogStatus, { bn: string; en: string; pill: string; solid: string }> = {
+  assigned: { bn: 'বাকি (অ্যাডমিন দিয়েছেন)', en: 'To do (assigned)', pill: 'bg-blue-100 text-blue-800', solid: 'bg-blue-600 text-white' },
   completed: { bn: 'সম্পূর্ণ', en: 'Completed', pill: 'bg-green-100 text-green-800', solid: 'bg-green-600 text-white' },
   partial: { bn: 'আংশিক', en: 'Partial', pill: 'bg-amber-100 text-amber-800', solid: 'bg-amber-500 text-white' },
   not_taken: { bn: 'নেওয়া হয়নি', en: 'Not taken', pill: 'bg-red-100 text-red-800', solid: 'bg-red-600 text-white' },
@@ -213,6 +214,24 @@ export default function MyAttendancePage() {
       setForm(emptyForm(teacher?.subject ?? ''));
       setEditingId(null);
       setMsg({ type: 'ok', text: tr('ক্লাস লগ সংরক্ষিত হয়েছে।', 'Class log saved.') });
+      await reload();
+    } catch (e) {
+      setMsg({ type: 'err', text: e instanceof Error ? e.message : tr('ব্যর্থ হয়েছে।', 'Failed.') });
+    }
+  }
+
+  /** Report an admin-assigned class: completed / partial / not taken */
+  async function reportLog(l: ClassLog, status: LogStatus) {
+    setMsg(null);
+    try {
+      await editLogApi.execute(`/api/attendance/teachers/me/classes/${l.id}`, {
+        classId: l.classId,
+        subject: l.subject,
+        period: l.period,
+        topic: l.topic,
+        status,
+        note: l.note,
+      });
       await reload();
     } catch (e) {
       setMsg({ type: 'err', text: e instanceof Error ? e.message : tr('ব্যর্থ হয়েছে।', 'Failed.') });
@@ -440,7 +459,7 @@ export default function MyAttendancePage() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex gap-1">
-            {(Object.keys(LOG_META) as LogStatus[]).map((s) => (
+            {(Object.keys(LOG_META) as LogStatus[]).filter((s) => s !== 'assigned').map((s) => (
               <button
                 key={s}
                 type="button"
@@ -486,9 +505,25 @@ export default function MyAttendancePage() {
                   {l.topic && <p className="text-xs text-ink/60">{l.topic}</p>}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={'rounded-full px-2 py-0.5 text-xs font-medium ' + LOG_META[l.status].pill}>
-                    {tr(LOG_META[l.status].bn, LOG_META[l.status].en)}
-                  </span>
+                  {l.status === 'assigned' ? (
+                    <>
+                      {(['completed', 'partial', 'not_taken'] as LogStatus[]).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          disabled={busy}
+                          onClick={() => reportLog(l, s)}
+                          className={'rounded-lg px-2 py-1 text-xs font-medium disabled:opacity-50 ' + LOG_META[s].solid}
+                        >
+                          {tr(LOG_META[s].bn, LOG_META[s].en)}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <span className={'rounded-full px-2 py-0.5 text-xs font-medium ' + LOG_META[l.status].pill}>
+                      {tr(LOG_META[l.status].bn, LOG_META[l.status].en)}
+                    </span>
+                  )}
                   <button type="button" onClick={() => startEdit(l)} className="text-xs text-royal hover:underline">
                     {tr('সম্পাদনা', 'Edit')}
                   </button>
@@ -603,4 +638,4 @@ export default function MyAttendancePage() {
       </div>
     </div>
   );
-}
+             }
