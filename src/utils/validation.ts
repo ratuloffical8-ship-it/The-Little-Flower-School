@@ -120,20 +120,18 @@ export function validateFile(
 
 /**
  * Admission form — Step 1: Student info
+ * (field names MUST match AdmissionFormData and the backend admissionApplySchema)
  */
 export const admissionStep1Schema = z.object({
   studentNameBn: bengaliNameSchema,
   studentNameEn: englishNameSchema,
   dateOfBirth: dobSchema,
   gender: genderSchema,
-  birthRegNo: requiredString(5, 50),
-  applyingClassId: requiredString(1, 50),
+  classApplyingFor: requiredString(1, 20),
   previousSchool: z.string().max(200).optional(),
-  previousClass: z.string().max(50).optional(),
-  previousResult: z.string().max(200).optional(),
-  currentAddress: requiredString(5, 500),
-  permanentAddress: requiredString(5, 500),
-  sameAsCurrent: z.boolean().optional(),
+  religion: requiredString(2, 50),
+  nationality: requiredString(2, 50),
+  bloodGroup: z.string().max(5).optional(),
 });
 
 /**
@@ -142,16 +140,22 @@ export const admissionStep1Schema = z.object({
 export const admissionStep2Schema = z.object({
   fatherName: requiredString(2, 100),
   motherName: requiredString(2, 100),
-  guardianName: z.string().max(100).optional(),
-  guardianRelation: z.string().max(50).optional(),
-  primaryMobile: bdPhoneSchema,
-  secondaryMobile: optionalBdPhoneSchema,
+  guardianName: requiredString(2, 100),
+  relationship: requiredString(2, 50),
+  occupation: requiredString(2, 100),
+  nid: z
+    .string()
+    .trim()
+    .regex(/^(\d{10}|\d{13}|\d{17})$/, 'এনআইডি ১০, ১৩ বা ১৭ ডিজিটের হতে হবে / NID must be 10, 13 or 17 digits'),
+  mobile: bdPhoneSchema,
   email: optionalEmailSchema,
-  guardianAddress: z.string().max(500).optional(),
+  presentAddress: requiredString(5, 500),
+  permanentAddress: requiredString(5, 500),
+  monthlyIncome: z.string().max(50).optional(),
 });
 
 /**
- * Admission form — Step 3: Consent
+ * Admission form — Step 3: Consent (kept for compatibility, not used by the form)
  */
 export const admissionStep3Schema = z.object({
   consent: z.literal(true, {
@@ -160,11 +164,26 @@ export const admissionStep3Schema = z.object({
 });
 
 /**
- * Full admission form schema (all steps combined)
+ * Full admission form schema: step 1 + step 2 + document files
  */
-export const admissionFormSchema = admissionStep1Schema
-  .merge(admissionStep2Schema)
-  .merge(admissionStep3Schema);
+const imageFile = (required: boolean) =>
+  z
+    .custom<File | null>((v) => v === null || v === undefined || v instanceof File)
+    .superRefine((file, ctx) => {
+      const msg = validateFile(file ?? null, {
+        required,
+        maxSize: 3 * 1024 * 1024,
+        allowedTypes: ALLOWED_IMAGE_TYPES,
+      });
+      if (msg) ctx.addIssue({ code: z.ZodIssueCode.custom, message: msg });
+    });
+
+export const admissionFormSchema = admissionStep1Schema.merge(admissionStep2Schema).extend({
+  photo: imageFile(true),
+  birthCertificate: imageFile(true),
+  previousReportCard: imageFile(false),
+  guardianNid: imageFile(false),
+});
 
 /**
  * Application status lookup
@@ -187,16 +206,21 @@ export const resultLookupSchema = z.object({
  * Payment submission
  */
 export const paymentSubmissionSchema = z.object({
-  studentIdOrApplicationId: requiredString(5, 50),
-  guardianMobile: bdPhoneSchema,
-  payerMobile: bdPhoneSchema,
-  provider: z.enum(['bkash', 'nagad', 'cash', 'bank']),
-  transactionId: requiredString(5, 100),
+  studentId: z
+    .string()
+    .trim()
+    .regex(/^TLFS-STU-\d{4}-\d{4}$/i, 'সঠিক স্টুডেন্ট আইডি দিন (TLFS-STU-2026-0001) / Enter a valid Student ID'),
+  mobile: bdPhoneSchema,
+  senderNumber: bdPhoneSchema,
+  provider: z.enum(['bkash', 'nagad']),
+  trxId: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9]{6,20}$/, 'সঠিক ট্রানজেকশন আইডি দিন / Enter a valid transaction ID'),
   amount: z
-    .number({ required_error: 'পরিমাণ দিন' })
+    .number({ required_error: 'পরিমাণ দিন', invalid_type_error: 'পরিমাণ দিন' })
     .min(1, 'পরিমাণ কমপক্ষে ১ টাকা')
-    .max(9999999, 'পরিমাণ সর্বোচ্চ ৯৯,৯৯,৯৯৯ টাকা'),
-  purpose: requiredString(2, 200),
+    .max(1000000, 'পরিমাণ সর্বোচ্চ ১০,০০,০০০ টাকা'),
 });
 
 /**
