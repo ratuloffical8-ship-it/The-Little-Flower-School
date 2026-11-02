@@ -29,6 +29,8 @@ const StudentsListPage = lazy(() => import('@/features/admin/students/StudentsLi
 const StudentDetailPage = lazy(() => import('@/features/admin/students/StudentDetailPage'));
 const TeachersListPage = lazy(() => import('@/features/admin/teachers/TeachersListPage'));
 const AttendancePage = lazy(() => import('@/features/admin/attendance/AttendancePage'));
+const MyAttendancePage = lazy(() => import('@/features/admin/attendance/MyAttendancePage'));
+const TeacherAttendancePage = lazy(() => import('@/features/admin/attendance/TeacherAttendancePage'));
 const ExamsListPage = lazy(() => import('@/features/admin/exams/ExamsListPage'));
 const ResultsEntryPage = lazy(() => import('@/features/admin/exams/ResultsEntryPage'));
 const NoticesListPage = lazy(() => import('@/features/admin/notices/NoticesListPage'));
@@ -75,6 +77,8 @@ function App() {
           <Route path="students/:id" element={<StudentDetailPage />} />
           <Route path="teachers" element={<TeachersListPage />} />
           <Route path="attendance" element={<AttendancePage />} />
+          <Route path="my-attendance" element={<MyAttendancePage />} />
+          <Route path="teacher-attendance" element={<TeacherAttendancePage />} />
           <Route path="exams" element={<ExamsListPage />} />
           <Route path="exams/:examId/results" element={<ResultsEntryPage />} />
           <Route path="notices" element={<NoticesListPage />} />
