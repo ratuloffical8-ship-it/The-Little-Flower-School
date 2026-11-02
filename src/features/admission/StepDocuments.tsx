@@ -42,8 +42,8 @@ export default function StepDocuments({ data, errors, onChange }: Props) {
         </h3>
         <p className="text-sm text-ink-light mb-4">
           {isBengali
-            ? 'প্রতিটি ফাইল সর্বোচ্চ 3MB, JPG/PNG/PDF ফরম্যাটে আপলোড করুন।'
-            : 'Each file max 3MB, upload in JPG/PNG/PDF format.'}
+            ? 'প্রতিটি ফাইল সর্বোচ্চ 3MB, শুধু ছবি (JPG/PNG) আপলোড করুন। কাগজের ছবি/স্ক্যান তুলে দিন।'
+            : 'Each file max 3MB, images only (JPG/PNG). Upload a clear photo/scan of the paper.'}
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -58,7 +58,7 @@ export default function StepDocuments({ data, errors, onChange }: Props) {
           />
           <FileUpload
             label={isBengali ? 'জন্ম নিবন্ধন *' : 'Birth Certificate *'}
-            accept="image/jpeg,image/png,application/pdf"
+            accept="image/jpeg,image/png"
             maxSize={3}
             value={data.birthCertificate}
             onChange={(f) => onChange('birthCertificate', f)}
@@ -66,7 +66,7 @@ export default function StepDocuments({ data, errors, onChange }: Props) {
           />
           <FileUpload
             label={isBengali ? 'পূর্ববর্তী রিপোর্ট কার্ড' : 'Previous Report Card'}
-            accept="image/jpeg,image/png,application/pdf"
+            accept="image/jpeg,image/png"
             maxSize={3}
             value={data.previousReportCard}
             onChange={(f) => onChange('previousReportCard', f)}
@@ -75,7 +75,7 @@ export default function StepDocuments({ data, errors, onChange }: Props) {
           />
           <FileUpload
             label={isBengali ? 'অভিভাবকের NID' : 'Guardian NID'}
-            accept="image/jpeg,image/png,application/pdf"
+            accept="image/jpeg,image/png"
             maxSize={3}
             value={data.guardianNid}
             onChange={(f) => onChange('guardianNid', f)}
