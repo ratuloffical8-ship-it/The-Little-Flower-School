@@ -8,7 +8,8 @@ const TEACHERS_COLLECTION = 'teachers';
 const BATCH_LIMIT = 400;
 
 export type TeacherAttendanceStatus = 'present' | 'absent' | 'late' | 'leave';
-export type ClassLogStatus = 'completed' | 'partial' | 'not_taken';
+/** assigned = admin planned it, the teacher has not reported yet */
+export type ClassLogStatus = 'assigned' | 'completed' | 'partial' | 'not_taken';
 
 /** Today's date / time in Bangladesh (UTC+6) */
 export const nowBd = (): { date: string; time: string } => {
@@ -74,6 +75,8 @@ export interface TeacherMonthSummary {
   classesCompleted: number;
   classesPartial: number;
   classesNotTaken: number;
+  /** assigned by admin but not yet reported by the teacher */
+  classesPending: number;
   /** completed / total * 100 (1 decimal) */
   completionPercent: number;
 }
@@ -87,6 +90,7 @@ const emptySummary = (): TeacherMonthSummary => ({
   classesCompleted: 0,
   classesPartial: 0,
   classesNotTaken: 0,
+  classesPending: 0,
   completionPercent: 0,
 });
 
@@ -245,6 +249,14 @@ export async function listLogsForDay(teacherId: string, date: string): Promise<C
   return snap.docs.map(mapLog).sort((a, b) => (a.period ?? 99) - (b.period ?? 99));
 }
 
+/** Every teacher's class logs / assignments of one day (admin view). */
+export async function listLogsForDate(date: string): Promise<ClassLog[]> {
+  const snap = await db.collection(TEACHER_CLASS_LOG_COLLECTION).where('date', '==', date).get();
+  return snap.docs
+    .map(mapLog)
+    .sort((a, b) => a.teacherId.localeCompare(b.teacherId) || (a.period ?? 99) - (b.period ?? 99));
+}
+
 export async function listLogsForMonth(month: string, teacherId?: string): Promise<ClassLog[]> {
   let q: FirebaseFirestore.Query = db.collection(TEACHER_CLASS_LOG_COLLECTION).where('month', '==', month);
   if (teacherId) q = q.where('teacherId', '==', teacherId);
@@ -325,6 +337,7 @@ export function buildSummary(
     s.classesTotal += 1;
     if (l.status === 'completed') s.classesCompleted += 1;
     else if (l.status === 'partial') s.classesPartial += 1;
+    else if (l.status === 'assigned') s.classesPending += 1;
     else s.classesNotTaken += 1;
   }
   for (const s of Object.values(out)) {
@@ -341,4 +354,4 @@ export async function getTeacherMonth(month: string): Promise<{
 }> {
   const [items, classes] = await Promise.all([getAttendanceMonth(month), listLogsForMonth(month)]);
   return { items, classes, summary: buildSummary(items, classes) };
-  }
+          }
