@@ -6,9 +6,11 @@ import { logAudit } from '../services/audit.service';
 import { getActiveSessionId } from '../services/session.service';
 import {
   getClassAttendance,
+  getClassMonth,
   markAttendance,
   getStudentAttendance,
 } from '../services/attendance.service';
+import teacherAttendanceRoutes from './teacherAttendance';
 import { badRequest } from '../utils/errors';
 
 const router = Router();
@@ -59,6 +61,11 @@ const markSchema = z.object({
     .max(300),
 });
 
+const monthQuery = z.object({
+  classId: z.string().trim().min(1),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM'),
+});
+
 const rangeQuery = z.object({ from: isoDate, to: isoDate });
 
 // GET /api/attendance?classId=&date=
@@ -90,6 +97,19 @@ router.post(
     res.json({ success: true, saved });
   }),
 );
+
+// GET /api/attendance/month?classId=&month=YYYY-MM  (calendar view)
+router.get(
+  '/month',
+  ah(async (req, res) => {
+    const { classId, month } = parse(monthQuery, req.query);
+    const items = await getClassMonth(classId, month);
+    res.json({ items });
+  }),
+);
+
+// Teacher attendance lives under /api/attendance/teachers/* (admin only)
+router.use('/teachers', teacherAttendanceRoutes);
 
 // GET /api/attendance/student/:studentId?from=&to=
 router.get(
