@@ -37,10 +37,10 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
 
 const lookupSchema = z.object({
   examId: z.string().trim().min(1).max(60),
-  roll: z.preprocess(
-    (v) => String(v ?? '').trim(),
-    z.string().regex(/^\d{1,4}$/, 'Invalid roll number'),
-  ),
+  roll: z.coerce
+    .string()
+    .trim()
+    .regex(/^\d{1,4}$/, 'Invalid roll number'),
   mobile: z.string().trim().min(10).max(20),
 });
 
