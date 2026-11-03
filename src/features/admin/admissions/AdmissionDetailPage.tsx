@@ -208,9 +208,25 @@ export default function AdmissionDetailPage() {
     ? app.student?.nameBn || app.student?.nameEn || '—'
     : app.student?.nameEn || app.student?.nameBn || '—';
 
-  const documents = Object.entries(app.documents ?? {}).filter(
-    ([, v]) => v && (v.url || v.path),
-  );
+  // Backend stores each document as a plain URL string (ImgBB); older data may be {url,name}.
+  const DOC_NAMES: Record<string, [string, string]> = {
+    photo: ['পাসপোর্ট সাইজ ছবি', 'Passport photo'],
+    birthCertificate: ['জন্ম নিবন্ধন', 'Birth certificate'],
+    previousReportCard: ['আগের রিপোর্ট কার্ড', 'Previous report card'],
+    guardianNid: ['অভিভাবকের NID', 'Guardian NID'],
+  };
+  const documents: Array<[string, DocumentRef]> = Object.entries(
+    (app.documents ?? {}) as Record<string, unknown>,
+  )
+    .map(([k, v]): [string, DocumentRef] => {
+      if (typeof v === 'string') return [k, { url: v } as DocumentRef];
+      return [k, (v ?? {}) as DocumentRef];
+    })
+    .filter(([, v]) => !!(v.url || v.path))
+    .map(([k, v]): [string, DocumentRef] => [
+      k,
+      { ...v, name: v.name || (DOC_NAMES[k] ? tr(DOC_NAMES[k][0], DOC_NAMES[k][1]) : humanize(k)) } as DocumentRef,
+    ]);
 
   return (
     <div className="space-y-6">
@@ -312,7 +328,17 @@ export default function AdmissionDetailPage() {
                     key={key}
                     className="flex items-center justify-between rounded border border-surface px-3 py-2"
                   >
-                    <span className="text-ink">
+                    <span className="flex items-center gap-3 text-ink">
+                      {doc?.url && /^https?:\/\//.test(doc.url) && (
+                        <a href={doc.url} target="_blank" rel="noreferrer">
+                          <img
+                            src={doc.url}
+                            alt=""
+                            loading="lazy"
+                            className="h-16 w-16 rounded border border-surface object-cover"
+                          />
+                        </a>
+                      )}
                       {doc?.name || humanize(key)}
                     </span>
                     {doc?.url ? (
