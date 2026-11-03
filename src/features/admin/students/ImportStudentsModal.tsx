@@ -456,7 +456,7 @@ export default function ImportStudentsModal({
           </p>
           <p className="mt-2 text-xs text-ink/70">
             {tr(
-              `সর্বোচ্চ ${MAX_ROWS} সারি · UTF-8 এনকোডিং · classId হতে হবে বৈধ শ্রেণির আইডি (যেমন play, nursery, 1-10)।`,
+              `সর্বোচ্চ ${MAX_ROWS} সারি · UTF-8 এনকোডিং · classId হতে হবে বৈধ শ্রেণির আইডি (যেমন play, nursery, 1-5)।`,
               `Max ${MAX_ROWS} rows · UTF-8 encoding · classId must be a valid class ID (e.g., play, nursery, 1–10).`,
             )}
           </p>
@@ -574,4 +574,4 @@ export default function ImportStudentsModal({
       </div>
     </div>
   );
-  }
+        }
