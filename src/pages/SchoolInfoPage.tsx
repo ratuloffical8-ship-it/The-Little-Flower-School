@@ -11,7 +11,7 @@ const SECTIONS = [
     icon: <BookOpen size={24} />,
     titleBn: 'আমাদের সম্পর্কে',
     titleEn: 'About Us',
-    contentBn: 'Editable sample content — ২০১৬ সালে প্রতিষ্ঠিত দ্য লিটল ফ্লাওয়ার স্কুল শিক্ষায় উৎকর্ষ ও নৈতিক মূল্যবোধ বিকাশে প্রতিশ্রুতিবদ্ধ। আমাদের অভিজ্ঞ শিক্ষকমণ্ডলী প্রতিটি শিক্ষার্থীর মেধা ও সৃজনশীলতা বিকাশে নিরলসভাবে কাজ করে যাচ্ছেন।',
+    contentBn: 'Editable sample content — ২০১৬ সালে প্রতিষ্ঠিত দি লিটল ফ্লাওয়ার স্কুল শিক্ষায় উৎকর্ষ ও নৈতিক মূল্যবোধ বিকাশে প্রতিশ্রুতিবদ্ধ। আমাদের অভিজ্ঞ শিক্ষকমণ্ডলী প্রতিটি শিক্ষার্থীর মেধা ও সৃজনশীলতা বিকাশে নিরলসভাবে কাজ করে যাচ্ছেন।',
     contentEn: 'Editable sample content — Established in 2016, The Little Flower School is committed to academic excellence and moral development. Our experienced faculty works tirelessly to nurture every student\'s talent and creativity.',
   },
   {
@@ -43,8 +43,8 @@ const SECTIONS = [
     icon: <Users size={24} />,
     titleBn: 'শিক্ষাক্রম',
     titleEn: 'Academic Program',
-    contentBn: 'Editable sample content — প্লে থেকে দশম শ্রেণি পর্যন্ত জাতীয় শিক্ষাক্রম অনুসরণ করে আধুনিক ও সৃজনশীল শিক্ষাদান পদ্ধতি ব্যবহার করা হয়।',
-    contentEn: 'Editable sample content — Following the national curriculum from Play to Class 10 with modern and creative teaching methods.',
+    contentBn: 'Editable sample content — প্লে থেকে পঞ্চম শ্রেণি পর্যন্ত জাতীয় শিক্ষাক্রম অনুসরণ করে আধুনিক ও সৃজনশীল শিক্ষাদান পদ্ধতি ব্যবহার করা হয়।',
+    contentEn: 'Editable sample content — Following the national curriculum from Play to Class 5 with modern and creative teaching methods.',
   },
   {
     key: 'cocurricular',
@@ -66,7 +66,7 @@ export default function SchoolInfoPage() {
       <SEOHead
         title={isBengali ? 'স্কুল তথ্য' : 'School Information'}
         description={isBengali
-          ? 'দ্য লিটল ফ্লাওয়ার স্কুল সম্পর্কে বিস্তারিত তথ্য — ইতিহাস, লক্ষ্য, ভিশন, অবকাঠামো ও শিক্ষাক্রম।'
+          ? 'দি লিটল ফ্লাওয়ার স্কুল সম্পর্কে বিস্তারিত তথ্য — ইতিহাস, লক্ষ্য, ভিশন, অবকাঠামো ও শিক্ষাক্রম।'
           : 'Detailed information about The Little Flower School — history, mission, vision, infrastructure, and curriculum.'}
         canonical="/school-info"
       />
@@ -117,4 +117,4 @@ export default function SchoolInfoPage() {
       </section>
     </>
   );
-}
+    }
