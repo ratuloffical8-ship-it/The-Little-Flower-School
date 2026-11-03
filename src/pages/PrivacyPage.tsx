@@ -72,7 +72,7 @@ export default function PrivacyPage() {
     <>
       <SEOHead
         title={t('privacy.title')}
-        description={isBengali ? 'গোপনীয়তা নীতি — দ্য লিটল ফ্লাওয়ার স্কুল' : 'Privacy Policy — The Little Flower School'}
+        description={isBengali ? 'গোপনীয়তা নীতি — দি লিটল ফ্লাওয়ার স্কুল' : 'Privacy Policy — The Little Flower School'}
         canonical="/privacy"
       />
       <div className="container-page py-10">
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
         <div className="card max-w-3xl mx-auto p-6 md:p-8 space-y-6">
           <p className="text-ink leading-relaxed">
             {isBengali
-              ? 'দ্য লিটল ফ্লাওয়ার স্কুল আপনার গোপনীয়তাকে সম্মান করে। এই নীতিমালা ব্যাখ্যা করে আমরা কীভাবে আপনার তথ্য সংগ্রহ, ব্যবহার এবং সুরক্ষা করি। এটি একটি খসড়া নথি — চূড়ান্ত সংস্করণ বিদ্যালয় কর্তৃপক্ষ কর্তৃক অনুমোদিত হওয়ার পর প্রকাশিত হবে।'
+              ? 'দি লিটল ফ্লাওয়ার স্কুল আপনার গোপনীয়তাকে সম্মান করে। এই নীতিমালা ব্যাখ্যা করে আমরা কীভাবে আপনার তথ্য সংগ্রহ, ব্যবহার এবং সুরক্ষা করি। এটি একটি খসড়া নথি — চূড়ান্ত সংস্করণ বিদ্যালয় কর্তৃপক্ষ কর্তৃক অনুমোদিত হওয়ার পর প্রকাশিত হবে।'
               : 'The Little Flower School respects your privacy. This policy explains how we collect, use, and protect your information. This is a draft document — the final version will be published after approval by the school authority.'}
           </p>
 
@@ -106,4 +106,4 @@ export default function PrivacyPage() {
       </div>
     </>
   );
-    }
+  }
