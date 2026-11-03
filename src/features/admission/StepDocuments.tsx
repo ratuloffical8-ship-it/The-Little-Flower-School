@@ -8,9 +8,7 @@ const CLASS_LABELS: Record<string, { bn: string; en: string }> = {
   play: { bn: 'প্লে', en: 'Play' },
   nursery: { bn: 'নার্সারি', en: 'Nursery' },
   '1': { bn: '১', en: '1' }, '2': { bn: '২', en: '2' }, '3': { bn: '৩', en: '3' },
-  '4': { bn: '৪', en: '4' }, '5': { bn: '৫', en: '5' }, '6': { bn: '৬', en: '6' },
-  '7': { bn: '৭', en: '7' }, '8': { bn: '৮', en: '8' }, '9': { bn: '৯', en: '9' },
-  '10': { bn: '১০', en: '10' },
+  '4': { bn: '৪', en: '4' }, '5': { bn: '৫', en: '5' },
 };
 
 interface Props {
@@ -127,4 +125,4 @@ export default function StepDocuments({ data, errors, onChange }: Props) {
       </div>
     </div>
   );
-  }
+                                        }
