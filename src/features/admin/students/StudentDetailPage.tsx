@@ -45,11 +45,6 @@ const FALLBACK_CLASSES: ClassOption[] = [
   { id: '3', nameBn: 'তৃতীয়', nameEn: 'Class 3', order: 4 },
   { id: '4', nameBn: 'চতুর্থ', nameEn: 'Class 4', order: 5 },
   { id: '5', nameBn: 'পঞ্চম', nameEn: 'Class 5', order: 6 },
-  { id: '6', nameBn: 'ষষ্ঠ', nameEn: 'Class 6', order: 7 },
-  { id: '7', nameBn: 'সপ্তম', nameEn: 'Class 7', order: 8 },
-  { id: '8', nameBn: 'অষ্টম', nameEn: 'Class 8', order: 9 },
-  { id: '9', nameBn: 'নবম', nameEn: 'Class 9', order: 10 },
-  { id: '10', nameBn: 'দশম', nameEn: 'Class 10', order: 11 },
 ];
 
 function toDate(value: StudentRecord['createdAt']): Date | null {
@@ -423,4 +418,4 @@ function Field({
       <dd className="mt-0.5 text-ink">{value || '—'}</dd>
     </div>
   );
-                                         }
+  }
