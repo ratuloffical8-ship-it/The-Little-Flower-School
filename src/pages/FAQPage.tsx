@@ -33,7 +33,7 @@ export default function FAQPage() {
     <>
       <SEOHead
         title={t('faq.title')}
-        description={isBengali ? 'সচরাচর জিজ্ঞাসা — দ্য লিটল ফ্লাওয়ার স্কুল' : 'Frequently Asked Questions — The Little Flower School'}
+        description={isBengali ? 'সচরাচর জিজ্ঞাসা — দি লিটল ফ্লাওয়ার স্কুল' : 'Frequently Asked Questions — The Little Flower School'}
         canonical="/faq"
       />
       <div className="container-page py-10">
@@ -88,4 +88,4 @@ export default function FAQPage() {
       </div>
     </>
   );
-    }
+      }
