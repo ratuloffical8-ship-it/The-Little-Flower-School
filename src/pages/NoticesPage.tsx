@@ -42,7 +42,7 @@ export default function NoticesPage() {
       <SEOHead
         title={isBengali ? 'নোটিশ বোর্ড' : 'Notice Board'}
         description={isBengali
-          ? 'দ্য লিটল ফ্লাওয়ার স্কুলের সর্বশেষ নোটিশ ও ঘোষণা।'
+          ? 'দি লিটল ফ্লাওয়ার স্কুলের সর্বশেষ নোটিশ ও ঘোষণা।'
           : 'Latest notices and announcements from The Little Flower School.'}
         canonical="/notices"
       />
@@ -128,4 +128,4 @@ export default function NoticesPage() {
       </section>
     </>
   );
-         }
+  }
