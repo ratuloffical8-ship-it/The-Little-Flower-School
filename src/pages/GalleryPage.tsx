@@ -94,7 +94,7 @@ export default function GalleryPage() {
       <SEOHead
         title={isBengali ? 'ফটো গ্যালারি' : 'Photo Gallery'}
         description={isBengali
-          ? 'দ্য লিটল ফ্লাওয়ার স্কুলের ফটো গ্যালারি।'
+          ? 'দি লিটল ফ্লাওয়ার স্কুলের ফটো গ্যালারি।'
           : 'Photo gallery of The Little Flower School.'}
         canonical="/gallery"
       />
