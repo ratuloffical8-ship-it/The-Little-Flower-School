@@ -25,11 +25,6 @@ const CLASSES: ClassSeed[] = [
   { id: '3', nameBn: 'তৃতীয় শ্রেণি', nameEn: 'Class 3', order: 4 },
   { id: '4', nameBn: 'চতুর্থ শ্রেণি', nameEn: 'Class 4', order: 5 },
   { id: '5', nameBn: 'পঞ্চম শ্রেণি', nameEn: 'Class 5', order: 6 },
-  { id: '6', nameBn: 'ষষ্ঠ শ্রেণি', nameEn: 'Class 6', order: 7 },
-  { id: '7', nameBn: 'সপ্তম শ্রেণি', nameEn: 'Class 7', order: 8 },
-  { id: '8', nameBn: 'অষ্টম শ্রেণি', nameEn: 'Class 8', order: 9 },
-  { id: '9', nameBn: 'নবম শ্রেণি', nameEn: 'Class 9', order: 10 },
-  { id: '10', nameBn: 'দশম শ্রেণি', nameEn: 'Class 10', order: 11 },
 ];
 
 function arg(name: string): string | undefined {
