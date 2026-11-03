@@ -11,8 +11,8 @@ export default function AdmissionPage() {
       <SEOHead
         title={isBengali ? 'ভর্তি আবেদন' : 'Admission Application'}
         description={isBengali
-          ? 'দ্য লিটল ফ্লাওয়ার স্কুলে অনলাইন ভর্তি আবেদন করুন। প্লে থেকে দশম শ্রেণি।'
-          : 'Apply for admission online at The Little Flower School. Play to Class 10.'}
+          ? 'দি লিটল ফ্লাওয়ার স্কুলে অনলাইন ভর্তি আবেদন করুন। প্লে থেকে পঞ্চম শ্রেণি।'
+          : 'Apply for admission online at The Little Flower School. Play to Class 5.'}
         canonical="/admission"
       />
 
@@ -37,4 +37,4 @@ export default function AdmissionPage() {
       </section>
     </>
   );
-      }
+}
