@@ -17,6 +17,7 @@ import {
   listApplications,
   updateStatus,
 } from '../services/admission.service';
+import { HttpError } from '../utils/errors';
 import { uploadFile } from '../services/storage.service';
 import { getActiveSessionId } from '../services/session.service';
 import { generateId } from '../services/counter.service';
@@ -192,6 +193,12 @@ router.post(
 
       res.status(201).json({ applicationId });
     } catch (err) {
+      // Show the real cause for unexpected faults (helps setup debugging)
+      if (!(err instanceof HttpError) && err instanceof Error && !(err as { type?: string }).type && err.name !== 'MulterError') {
+        console.error('[admission/apply]', err);
+        next(new HttpError(500, 'ত্রুটি / Error: ' + err.message.slice(0, 200)));
+        return;
+      }
       next(err);
     }
   }
