@@ -59,6 +59,8 @@ export const en = {
   admission: {
     title: 'Online Admission Application',
     subtitle: 'Fill in all information accurately',
+    formTitle: 'Admission Application Form',
+    step: 'Step',
     step1: 'Student Information',
     step2: 'Guardian Information',
     step3: 'Documents & Review',
