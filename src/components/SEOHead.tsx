@@ -27,13 +27,13 @@ export default function SEOHead({
   canonical,
 }: SEOHeadProps) {
   useEffect(() => {
-    const fullTitle = `${title} — দ্য লিটল ফ্লাওয়ার স্কুল`;
+    const fullTitle = `${title} — দি লিটল ফ্লাওয়ার স্কুল`;
 
     // Title
     document.title = fullTitle;
 
     // Description
-    setMeta('name', 'description', description || 'দ্য লিটল ফ্লাওয়ার স্কুল — স্থাপিত ২০১৬। শিক্ষায় উৎকর্ষ, নৈতিকতায় বিকাশ।');
+    setMeta('name', 'description', description || 'দি লিটল ফ্লাওয়ার স্কুল — স্থাপিত ২০১৬। শিক্ষায় উৎকর্ষ, নৈতিকতায় বিকাশ।');
 
     // Open Graph
     setMeta('property', 'og:title', fullTitle);
@@ -64,7 +64,7 @@ export default function SEOHead({
 
     return () => {
       // Cleanup: reset title on unmount
-      document.title = 'দ্য লিটল ফ্লাওয়ার স্কুল';
+      document.title = 'দি লিটল ফ্লাওয়ার স্কুল';
     };
   }, [title, description, ogImage, noIndex, canonical]);
 
@@ -82,4 +82,4 @@ function setMeta(attr: 'name' | 'property', value: string, content: string) {
     document.head.appendChild(el);
   }
   el.content = content;
-}
+    }
