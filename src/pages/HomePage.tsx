@@ -46,7 +46,7 @@ export default function HomePage() {
       <SEOHead
         title={isBengali ? 'হোম' : 'Home'}
         description={isBengali
-          ? 'দ্য লিটল ফ্লাওয়ার স্কুল — স্থাপিত ২০১৬। আধুনিক শিক্ষাব্যবস্থা, যত্নশীল শিক্ষক এবং শিক্ষার্থীবান্ধব পরিবেশ।'
+          ? 'দি লিটল ফ্লাওয়ার স্কুল — স্থাপিত ২০১৬। আধুনিক শিক্ষাব্যবস্থা, যত্নশীল শিক্ষক এবং শিক্ষার্থীবান্ধব পরিবেশ।'
           : 'The Little Flower School — Est. 2016. Modern education, caring teachers, student-friendly environment.'}
         canonical="/"
       />
@@ -207,7 +207,7 @@ export default function HomePage() {
             {t('home.classesText')}
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-2">
-            {['Play', 'Nursery', 'KG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'].map(
+            {['Play', 'Nursery', '1', '2', '3', '4', '5'].map(
               (cls) => (
                 <span
                   key={cls}
@@ -394,4 +394,4 @@ export default function HomePage() {
       </section>
     </>
   );
-        }
+            }
