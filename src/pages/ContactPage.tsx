@@ -60,7 +60,7 @@ export default function ContactPage() {
       <SEOHead
         title={isBengali ? 'যোগাযোগ' : 'Contact'}
         description={isBengali
-          ? 'দ্য লিটল ফ্লাওয়ার স্কুলের সাথে যোগাযোগ করুন।'
+          ? 'দি লিটল ফ্লাওয়ার স্কুলের সাথে যোগাযোগ করুন।'
           : 'Get in touch with The Little Flower School.'}
         canonical="/contact"
       />
@@ -287,4 +287,4 @@ export default function ContactPage() {
       </section>
     </>
   );
-          }
+        }
