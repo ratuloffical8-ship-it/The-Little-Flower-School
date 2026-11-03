@@ -5,7 +5,7 @@ import { db, FieldValue } from '../config/firebase';
 /**
  * GET /api/classes → { items: [{ id, nameBn, nameEn, order }] }
  * Public + read-only. If the collection is empty it is filled once with
- * Play, Nursery and Class 1–10 (so no manual seed script is needed on Render free).
+ * Play, Nursery and Class 1–5 (so no manual seed script is needed on Render free).
  */
 const router = Router();
 
@@ -17,11 +17,6 @@ const DEFAULT_CLASSES = [
   { id: '3', nameBn: 'তৃতীয় শ্রেণি', nameEn: 'Class 3' },
   { id: '4', nameBn: 'চতুর্থ শ্রেণি', nameEn: 'Class 4' },
   { id: '5', nameBn: 'পঞ্চম শ্রেণি', nameEn: 'Class 5' },
-  { id: '6', nameBn: 'ষষ্ঠ শ্রেণি', nameEn: 'Class 6' },
-  { id: '7', nameBn: 'সপ্তম শ্রেণি', nameEn: 'Class 7' },
-  { id: '8', nameBn: 'অষ্টম শ্রেণি', nameEn: 'Class 8' },
-  { id: '9', nameBn: 'নবম শ্রেণি', nameEn: 'Class 9' },
-  { id: '10', nameBn: 'দশম শ্রেণি', nameEn: 'Class 10' },
 ].map((c, order) => ({ ...c, order }));
 
 async function ensureSeeded(): Promise<void> {
@@ -43,7 +38,15 @@ router.get('/', async (_req, res, next) => {
   try {
     await ensureSeeded();
     const snap = await db.collection('schoolClasses').get();
+    // Primary school: classes 6–10 were removed. Hide + delete any old seeded docs.
+    const legacy = snap.docs.filter((d) => ['6', '7', '8', '9', '10'].includes(d.id));
+    if (legacy.length > 0) {
+      const b = db.batch();
+      legacy.forEach((d) => b.delete(d.ref));
+      b.commit().catch(() => undefined);
+    }
     const items = snap.docs
+      .filter((d) => !['6', '7', '8', '9', '10'].includes(d.id))
       .map((d) => {
         const x = d.data();
         return {
