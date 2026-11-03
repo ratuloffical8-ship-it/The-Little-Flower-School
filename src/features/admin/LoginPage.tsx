@@ -80,14 +80,14 @@ export default function LoginPage() {
         <div className="mb-6 text-center">
           <img
             src="/images/logo.png"
-            alt={tr('দ্য লিটল ফ্লাওয়ার স্কুল', 'The Little Flower School')}
+            alt={tr('দি লিটল ফ্লাওয়ার স্কুল', 'The Little Flower School')}
             className="mx-auto h-16 w-16 object-contain"
           />
           <h1 className="mt-3 text-xl font-bold text-navy">
             {tr('অ্যাডমিন লগইন', 'Admin sign in')}
           </h1>
           <p className="mt-1 text-sm text-ink/70">
-            {tr('দ্য লিটল ফ্লাওয়ার স্কুল', 'The Little Flower School')}
+            {tr('দি লিটল ফ্লাওয়ার স্কুল', 'The Little Flower School')}
           </p>
         </div>
 
@@ -182,4 +182,4 @@ export default function LoginPage() {
       </div>
     </main>
   );
-    }
+}
