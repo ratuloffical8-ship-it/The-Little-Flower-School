@@ -38,7 +38,7 @@ export interface SchoolSettings {
 }
 
 const DEFAULT_SETTINGS: SchoolSettings = {
-  schoolNameBn: 'দ্য লিটল ফ্লাওয়ার স্কুল',
+  schoolNameBn: 'দি লিটল ফ্লাওয়ার স্কুল',
   schoolNameEn: 'The Little Flower School',
   establishedYear: 2016,
   address: 'Editable sample content — replace with real address',
@@ -102,4 +102,4 @@ export async function ensureDefaultSettings(): Promise<void> {
     });
     console.log('[SETTINGS] Created default school settings');
   }
-}
+  }
