@@ -41,7 +41,7 @@ export const en = {
     principalName: 'Editable sample content',
     principalTitle: 'Principal',
     classesTitle: 'Classes & Curriculum',
-    classesText: 'Modern curriculum from Play to Class 10.',
+    classesText: 'Modern curriculum from Play to Class 5.',
     latestNotices: 'Latest Notices',
     resultShortcut: 'Check Results',
     resultShortcutText: 'Enter your Student ID and date of birth to view your exam results.',
