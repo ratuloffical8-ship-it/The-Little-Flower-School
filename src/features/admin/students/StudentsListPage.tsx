@@ -46,9 +46,9 @@ const ACTIVE_FILTERS: {
   bn: string;
   en: string;
 }[] = [
-  { value: '', bn: 'সব', en: 'All' },
-  { value: 'true', bn: 'সক্রিয়', en: 'Active' },
-  { value: 'false', bn: 'নিষ্ক্রিয়', en: 'Inactive' },
+  { value: 'true', bn: 'সক্রিয় (বর্তমান)', en: 'Active (current)' },
+  { value: 'false', bn: 'নিষ্ক্রিয় (ছেড়ে গেছে)', en: 'Inactive (left)' },
+  { value: 'all', bn: 'সব', en: 'All' },
 ];
 
 // Fallback list used when /api/classes isn't available (seed data IDs).
@@ -76,7 +76,8 @@ export default function StudentsListPage() {
 
   const [params, setParams] = useSearchParams();
   const classId = params.get('classId') ?? '';
-  const isActive = (params.get('isActive') ?? '') as '' | 'true' | 'false';
+  // Default: show only current (active) students; inactive ones are hidden unless chosen.
+  const isActive = (params.get('isActive') ?? 'true') as 'true' | 'false' | 'all';
   const search = params.get('search') ?? '';
   const page = Math.max(1, parseInt(params.get('page') ?? '1', 10) || 1);
 
@@ -100,7 +101,7 @@ export default function StudentsListPage() {
   const queryString = useMemo(() => {
     const sp = new URLSearchParams();
     if (classId) sp.set('classId', classId);
-    if (isActive) sp.set('isActive', isActive);
+    if (isActive !== 'all') sp.set('isActive', isActive);
     if (search) sp.set('search', search);
     sp.set('page', String(page));
     sp.set('pageSize', String(PAGE_SIZE));
@@ -229,7 +230,7 @@ export default function StudentsListPage() {
           <button type="submit" className="btn-primary">
             {tr('খুঁজুন', 'Search')}
           </button>
-          {(classId || isActive || search) && (
+          {(classId || isActive !== 'true' || search) && (
             <button
               type="button"
               onClick={() => {
@@ -398,4 +399,4 @@ export default function StudentsListPage() {
       )}
     </div>
   );
-    }
+      }
