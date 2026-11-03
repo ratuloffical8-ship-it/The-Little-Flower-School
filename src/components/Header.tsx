@@ -44,7 +44,7 @@ export default function Header() {
             />
             <div className="hidden sm:block">
               <h1 className="text-sm font-bold leading-tight text-white font-bengali">
-                {isBengali ? 'দ্য লিটল ফ্লাওয়ার স্কুল' : 'The Little Flower School'}
+                {isBengali ? 'দি লিটল ফ্লাওয়ার স্কুল' : 'The Little Flower School'}
               </h1>
               <p className="text-[10px] text-gold-soft">
                 {isBengali ? 'স্থাপিত: ২০১৬' : 'Est. 2016'}
@@ -137,4 +137,4 @@ export default function Header() {
       </div>
     </header>
   );
-            }
+                }
