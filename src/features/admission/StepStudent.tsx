@@ -11,11 +11,6 @@ const CLASSES = [
   { value: '3', bn: '৩', en: '3' },
   { value: '4', bn: '৪', en: '4' },
   { value: '5', bn: '৫', en: '5' },
-  { value: '6', bn: '৬', en: '6' },
-  { value: '7', bn: '৭', en: '7' },
-  { value: '8', bn: '৮', en: '8' },
-  { value: '9', bn: '৯', en: '9' },
-  { value: '10', bn: '১০', en: '10' },
 ];
 
 const GENDERS = [
@@ -163,4 +158,4 @@ export default function StepStudent({ data, errors, onChange }: Props) {
       </div>
     </div>
   );
-    }
+   }
