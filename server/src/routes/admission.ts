@@ -22,7 +22,7 @@ import { uploadFile } from '../services/storage.service';
 import { getActiveSessionId } from '../services/session.service';
 import { generateId } from '../services/counter.service';
 import { logAudit } from '../services/audit.service';
-import { db, FieldValue } from '../config/firebase';
+import { db, FieldValue, Timestamp } from '../config/firebase';
 
 const router = Router();
 
@@ -183,7 +183,7 @@ router.post(
             status: 'submitted',
             note: '',
             by: 'public-form',
-            at: FieldValue.serverTimestamp(),
+            at: Timestamp.now(),
           },
         ],
         correctionNote: '',
