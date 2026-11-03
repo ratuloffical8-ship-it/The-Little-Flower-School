@@ -42,7 +42,7 @@ interface ClassesResponse {
 const PAGE_SIZE = 25;
 
 const ACTIVE_FILTERS: {
-  value: '' | 'true' | 'false';
+  value: 'true' | 'false' | 'all';
   bn: string;
   en: string;
 }[] = [
@@ -394,4 +394,4 @@ export default function StudentsListPage() {
       )}
     </div>
   );
-  }
+    }
