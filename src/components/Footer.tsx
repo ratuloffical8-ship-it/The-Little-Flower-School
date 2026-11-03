@@ -21,7 +21,7 @@ export default function Footer() {
               />
               <div>
                 <h2 className="text-sm font-bold text-white font-bengali">
-                  {isBengali ? 'দ্য লিটল ফ্লাওয়ার স্কুল' : 'The Little Flower School'}
+                  {isBengali ? 'দি লিটল ফ্লাওয়ার স্কুল' : 'The Little Flower School'}
                 </h2>
                 <p className="text-xs text-gold-soft">
                   {isBengali ? 'স্থাপিত: ২০১৬' : 'Est. 2016'}
@@ -141,4 +141,4 @@ export default function Footer() {
       </div>
     </footer>
   );
-}
+      }
