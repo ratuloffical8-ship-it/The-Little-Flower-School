@@ -12,7 +12,6 @@ export const admissionApplySchema = z.object({
   classApplyingFor: z.enum([
     'play', 'nursery',
     '1', '2', '3', '4', '5',
-    '6', '7', '8', '9', '10',
   ]),
   previousSchool: z.string().trim().max(200).optional().default(''),
   religion: z.string().trim().min(2).max(50),
