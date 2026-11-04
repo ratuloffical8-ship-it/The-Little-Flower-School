@@ -1,11 +1,12 @@
 // src/features/admission/AdmissionForm.tsx
+import { compressImage } from '@/utils/image';
 import { useState, useCallback } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import { getIdToken } from '@/lib/firebase/auth';
 import { API_BASE_URL } from '@/lib/env';
 import { admissionStep1Schema, admissionStep2Schema, admissionFormSchema } from '@/utils/validation';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { Loader2 } from 'lucide-react';
 import ServerWaking from '@/components/ServerWaking';
 import StepStudent from './StepStudent';
 import StepGuardian from './StepGuardian';
@@ -162,21 +163,30 @@ export default function AdmissionForm() {
 
       // File fields
       const fileFields: (keyof AdmissionFormData)[] = ['photo', 'birthCertificate', 'previousReportCard', 'guardianNid'];
-      fileFields.forEach((key) => {
+      for (const key of fileFields) {
         const file = formData[key];
-        if (file instanceof File) body.append(key, file);
-      });
+        if (file instanceof File) body.append(key, await compressImage(file));
+      }
 
       const headers: Record<string, string> = {};
       const token = await getIdToken();
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const doFetch = async () =>
-        fetch(`${API_BASE_URL}/api/admission/apply`, {
-          method: 'POST',
-          headers,
-          body,
-        });
+      // Never hang forever: give up after 2 minutes with a clear message.
+      const doFetch = async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 120_000);
+        try {
+          return await fetch(`${API_BASE_URL}/api/admission/apply`, {
+            method: 'POST',
+            headers,
+            body,
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+      };
 
       let res = await doFetch();
 
@@ -200,7 +210,14 @@ export default function AdmissionForm() {
       const data = await res.json();
       setResult({ applicationId: data.applicationId });
     } catch (err: any) {
-      setSubmitError(err.message || (isBengali ? 'জমা দিতে সমস্যা হয়েছে।' : 'Failed to submit.'));
+      const timedOut = err?.name === 'AbortError';
+      setSubmitError(
+        timedOut
+          ? isBengali
+            ? 'সময় শেষ হয়ে গেছে। ইন্টারনেট ধীর বা সার্ভার ঘুমিয়ে ছিল। আবার চেষ্টা করুন।'
+            : 'Timed out. Slow internet or the server was asleep. Please try again.'
+          : err.message || (isBengali ? 'জমা দিতে সমস্যা হয়েছে।' : 'Failed to submit.'),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -297,7 +314,7 @@ export default function AdmissionForm() {
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
-                  <LoadingSpinner size={16} />
+                  <Loader2 size={16} className="animate-spin" />
                   {isBengali ? 'জমা দেওয়া হচ্ছে…' : 'Submitting…'}
                 </span>
               ) : (
@@ -306,6 +323,13 @@ export default function AdmissionForm() {
             </button>
           )}
         </div>
+        {isSubmitting && (
+          <p className="mt-3 text-center text-xs text-ink-light">
+            {isBengali
+              ? 'ছবি আপলোড হচ্ছে, ১-২ মিনিট লাগতে পারে। পেইজ বন্ধ করবেন না।'
+              : 'Uploading photos, this can take 1–2 minutes. Please do not close the page.'}
+          </p>
+        )}
       </div>
     </div>
   );
