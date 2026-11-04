@@ -48,15 +48,17 @@ export async function listExpenses(
 
   let q: FirebaseFirestore.Query = db.collection(EXPENSES_COLLECTION);
   if (category) q = q.where('category', '==', category);
-  if (from) q = q.where('date', '>=', from);
-  if (to) q = q.where('date', '<=', to);
-  q = q.orderBy('date', 'desc');
 
-  const countSnap = await q.count().get();
-  const total = countSnap.data().count;
-
-  const snap = await q.offset((page - 1) * pageSize).limit(pageSize).get();
-  return { items: snap.docs.map(toRecord), total, page, pageSize };
+  // Date range + sort + pagination in memory: no Firestore composite index needed.
+  const snap = await q.get();
+  let all = snap.docs.map(toRecord);
+  if (from) all = all.filter((e) => String((e as { date?: string }).date ?? '') >= from);
+  if (to) all = all.filter((e) => String((e as { date?: string }).date ?? '') <= to);
+  all.sort((a, b) =>
+    String((b as { date?: string }).date ?? '').localeCompare(String((a as { date?: string }).date ?? '')),
+  );
+  const total = all.length;
+  return { items: all.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize };
 }
 
 export async function createExpense(
@@ -103,4 +105,4 @@ export async function deleteExpense(id: string): Promise<void> {
   const existing = await ref.get();
   if (!existing.exists) throw notFound('খরচ পাওয়া যায়নি / Expense not found');
   await ref.delete();
-    }
+}
