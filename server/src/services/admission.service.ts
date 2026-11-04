@@ -44,6 +44,9 @@ export interface CreateApplicationInput {
 }
 
 export interface ApplicationRecord {
+  /** convenience alias of student.classApplyingFor (used by the admin screens) */
+  classApplyingFor?: string;
+  statusHistory?: Array<Record<string, unknown>>;
   id: string;
   applicationId: string;
   sessionId: string;
@@ -159,24 +162,54 @@ export async function lookupStatus(
 // ────────────────────────────────────────────────────────────────────
 // Admin: get by document id
 // ────────────────────────────────────────────────────────────────────
+/**
+ * Adds the field names the admin screens read (name, relation, address, dob, ...)
+ * next to the ones the public form stores, and turns Firestore timestamps into ISO strings.
+ */
+function decorate(rec: ApplicationRecord, rawHistory?: unknown): ApplicationRecord {
+  const st = rec.student ?? {};
+  const g = rec.guardian ?? {};
+  const history = Array.isArray(rawHistory)
+    ? rawHistory.map((h: any) => ({
+        ...h,
+        at: h?.at?.toDate ? h.at.toDate().toISOString() : h?.at,
+      }))
+    : undefined;
+  return {
+    ...rec,
+    classApplyingFor: st.classApplyingFor ?? '',
+    student: { ...st, dob: st.dob ?? st.dateOfBirth ?? '' },
+    guardian: {
+      ...g,
+      name: g.name ?? (g.guardianName || g.fatherName || ''),
+      relation: g.relation ?? g.relationship ?? '',
+      address: g.address ?? g.presentAddress ?? '',
+    },
+    ...(history ? { statusHistory: history } : {}),
+  };
+}
+
 export async function getApplicationById(
   id: string
 ): Promise<ApplicationRecord | null> {
   const snap = await db.collection(COLLECTION).doc(id).get();
   if (!snap.exists) return null;
   const d = snap.data()!;
-  return {
-    id: snap.id,
-    applicationId: d.applicationId,
-    sessionId: d.sessionId,
-    student: d.student ?? {},
-    guardian: d.guardian ?? {},
-    documents: d.documents ?? {},
-    status: d.status,
-    correctionNote: d.correctionNote ?? '',
-    createdAt: (d.createdAt as any)?.toDate?.() ?? new Date(),
-    updatedAt: (d.updatedAt as any)?.toDate?.() ?? new Date(),
-  };
+  return decorate(
+    {
+      id: snap.id,
+      applicationId: d.applicationId,
+      sessionId: d.sessionId,
+      student: d.student ?? {},
+      guardian: d.guardian ?? {},
+      documents: d.documents ?? {},
+      status: d.status,
+      correctionNote: d.correctionNote ?? '',
+      createdAt: (d.createdAt as any)?.toDate?.() ?? new Date(),
+      updatedAt: (d.updatedAt as any)?.toDate?.() ?? new Date(),
+    },
+    d.statusHistory,
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -214,7 +247,7 @@ export async function listApplications(filters: ListFilters): Promise<{
   const snap = await query.get();
   let all: ApplicationRecord[] = snap.docs.map((doc) => {
     const d = doc.data();
-    return {
+    return decorate({
       id: doc.id,
       applicationId: d.applicationId,
       sessionId: d.sessionId,
@@ -225,7 +258,7 @@ export async function listApplications(filters: ListFilters): Promise<{
       correctionNote: d.correctionNote ?? '',
       createdAt: (d.createdAt as any)?.toDate?.() ?? new Date(),
       updatedAt: (d.updatedAt as any)?.toDate?.() ?? new Date(),
-    };
+    });
   });
 
   const q = (filters.search ?? '').trim().toLowerCase();
@@ -273,4 +306,4 @@ export async function updateStatus(
     }),
     updatedAt: FieldValue.serverTimestamp(),
   });
-        }
+      }
