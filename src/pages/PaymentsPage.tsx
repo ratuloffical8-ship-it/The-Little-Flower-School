@@ -8,10 +8,13 @@ import { api, ApiRequestError } from '@/lib/api';
 import SEOHead from '@/components/SEOHead';
 import ServerWaking from '@/components/ServerWaking';
 import FileUpload from '@/components/FileUpload';
-import { paymentSubmissionSchema } from '@/utils/validation';
-import { MAX_SCREENSHOT_SIZE, ALLOWED_IMAGE_TYPES } from '@/utils/validation';
+import { paymentSubmissionSchema, PAYMENT_PURPOSES } from '@/utils/validation';
+import { MAX_SCREENSHOT_SIZE, ALLOWED_IMAGE_TYPES, normalizeBdMobile } from '@/utils/validation';
+import { compressImage } from '@/utils/image';
 
 type FormData = {
+  purpose: 'monthly_fee' | 'exam_fee' | 'admission_fee' | 'session_fee' | 'due' | 'other';
+  note?: string;
   studentId: string;
   mobile: string;
   senderNumber: string;
@@ -44,6 +47,8 @@ export default function PaymentsPage() {
   } = useForm<FormData>({
     resolver: zodResolver(paymentSubmissionSchema),
     defaultValues: {
+      purpose: 'monthly_fee',
+      note: '',
       studentId: '',
       mobile: '',
       senderNumber: '',
@@ -70,12 +75,14 @@ export default function PaymentsPage() {
     try {
       const body = new window.FormData();
       body.append('studentId', data.studentId.trim());
-      body.append('mobile', data.mobile);
-      body.append('senderNumber', data.senderNumber);
+      body.append('purpose', data.purpose);
+      if (data.note?.trim()) body.append('note', data.note.trim());
+      body.append('mobile', String(normalizeBdMobile(data.mobile)));
+      body.append('senderNumber', String(normalizeBdMobile(data.senderNumber)));
       body.append('provider', data.provider);
       body.append('trxId', data.trxId.trim());
       body.append('amount', String(data.amount));
-      if (screenshotFiles[0]) body.append('screenshot', screenshotFiles[0]);
+      if (screenshotFiles[0]) body.append('screenshot', await compressImage(screenshotFiles[0]));
 
       const res = await api.uploadFile<{ success?: boolean }>('/api/payments/submit', body, {
         noAuth: true,
@@ -229,6 +236,36 @@ export default function PaymentsPage() {
               {isBengali ? 'পেমেন্ট তথ্য দিন' : 'Enter Payment Details'}
             </h2>
 
+            {/* What is this payment for? */}
+            <div>
+              <label className="label">
+                {isBengali ? 'কিসের জন্য টাকা দিচ্ছেন?' : 'What are you paying for?'}{' '}
+                <span className="text-error">*</span>
+              </label>
+              <select {...register('purpose')} className="input-field">
+                {PAYMENT_PURPOSES.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {isBengali ? p.bn : p.en}
+                  </option>
+                ))}
+              </select>
+              {errors.purpose && <p className="error-text">{errors.purpose.message}</p>}
+            </div>
+
+            <div>
+              <label className="label">
+                {isBengali ? 'বিস্তারিত (ঐচ্ছিক), যেমন: কোন মাসের বেতন' : 'Details (optional), e.g. which month'}
+              </label>
+              <input
+                {...register('note')}
+                type="text"
+                maxLength={200}
+                className="input-field"
+                placeholder={isBengali ? 'যেমন: নভেম্বর ২০২৬ এর বেতন' : 'e.g. November 2026 tuition'}
+              />
+              {errors.note && <p className="error-text">{errors.note.message}</p>}
+            </div>
+
             {/* Student ID / Application ID */}
             <div>
               <label className="label">
@@ -359,4 +396,4 @@ export default function PaymentsPage() {
       </section>
     </>
   );
-}
+          }
