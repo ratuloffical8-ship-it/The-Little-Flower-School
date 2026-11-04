@@ -156,11 +156,9 @@ export async function getFinanceReport(from: string, to: string): Promise<Financ
   const [paySnap, expSnap, invSnap] = await Promise.all([
     db
       .collection('payments')
+      // status filter only (no range) → no composite index; date range is applied below
       .where('status', '==', 'verified')
-      .where('reviewedAt', '>=', startTs)
-      .where('reviewedAt', '<', endTs)
       .select('amount', 'provider', 'reviewedAt')
-      .limit(MAX_SCAN + 1)
       .get(),
     db
       .collection('expenses')
@@ -177,8 +175,14 @@ export async function getFinanceReport(from: string, to: string): Promise<Financ
       .get(),
   ]);
 
+  const payDocs = paySnap.docs.filter((d) => {
+    const ts = d.get('reviewedAt') as { toMillis?: () => number } | undefined;
+    const ms = ts?.toMillis?.() ?? 0;
+    return ms >= startTs.toMillis() && ms < endTs.toMillis();
+  });
+
   const truncated =
-    paySnap.size > MAX_SCAN || expSnap.size > MAX_SCAN || invSnap.size > MAX_SCAN;
+    payDocs.length > MAX_SCAN || expSnap.size > MAX_SCAN || invSnap.size > MAX_SCAN;
 
   const months = new Map<string, { collected: number; expenses: number }>();
   const bucket = (month: string) => {
@@ -193,7 +197,7 @@ export async function getFinanceReport(from: string, to: string): Promise<Financ
   let collectedTotal = 0;
   let collectedCount = 0;
   const byProvider: Record<string, number> = {};
-  for (const doc of paySnap.docs.slice(0, MAX_SCAN)) {
+  for (const doc of payDocs.slice(0, MAX_SCAN)) {
     const amount = Number(doc.get('amount')) || 0;
     const provider = String(doc.get('provider') ?? 'unknown');
     const reviewed = toDate(doc.get('reviewedAt'));
@@ -289,12 +293,15 @@ export async function getAttendanceReport(params: {
   const { from, to, classId } = params;
   assertRange(from, to, MAX_ATTENDANCE_DAYS);
 
-  let q: FirebaseFirestore.Query = db.collection('attendance');
-  if (classId) q = q.where('classId', '==', classId);
-  q = q.where('date', '>=', from).where('date', '<=', to);
+  // Date range only (no extra equality filter) → no composite index; class is filtered below.
+  const q: FirebaseFirestore.Query = db
+    .collection('attendance')
+    .where('date', '>=', from)
+    .where('date', '<=', to);
 
-  const snap = await q.select('date', 'status').limit(MAX_ATTENDANCE_SCAN + 1).get();
-  const truncated = snap.size > MAX_ATTENDANCE_SCAN;
+  const rawSnap = await q.select('date', 'status', 'classId').limit(MAX_ATTENDANCE_SCAN * 3 + 1).get();
+  const snap = { docs: classId ? rawSnap.docs.filter((d) => d.get('classId') === classId) : rawSnap.docs };
+  const truncated = snap.docs.length > MAX_ATTENDANCE_SCAN;
 
   const dayMap = new Map<string, AttendanceDay>();
   const totals = { present: 0, absent: 0, late: 0, leave: 0, total: 0 };
