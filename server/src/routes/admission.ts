@@ -106,46 +106,27 @@ router.post(
       // ── Upload files to Firebase Storage ────────────────────────
       const documents: Record<string, string> = {};
 
-      const [photoResult, bcResult] = await Promise.all([
-        uploadFile({
-          buffer: photoFile.buffer,
-          originalName: photoFile.originalname,
-          mimeType: photoFile.mimetype,
-          folder,
-          nameStem: 'photo',
-        }),
-        uploadFile({
-          buffer: bcFile.buffer,
-          originalName: bcFile.originalname,
-          mimeType: bcFile.mimetype,
-          folder,
-          nameStem: 'birth-certificate',
-        }),
-      ]);
-      documents.photo = photoResult.path;
-      documents.birthCertificate = bcResult.path;
-
-      if (rcFile) {
-        const rcResult = await uploadFile({
-          buffer: rcFile.buffer,
-          originalName: rcFile.originalname,
-          mimeType: rcFile.mimetype,
-          folder,
-          nameStem: 'report-card',
-        });
-        documents.previousReportCard = rcResult.path;
-      }
-
-      if (nidFile) {
-        const nidResult = await uploadFile({
-          buffer: nidFile.buffer,
-          originalName: nidFile.originalname,
-          mimeType: nidFile.mimetype,
-          folder,
-          nameStem: 'guardian-nid',
-        });
-        documents.guardianNid = nidResult.path;
-      }
+      // Upload all files in parallel (much faster on a slow free server)
+      const jobs: Array<Promise<void>> = [];
+      const queue = (file: Express.Multer.File | undefined, stem: string, key: string) => {
+        if (!file) return;
+        jobs.push(
+          uploadFile({
+            buffer: file.buffer,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            folder,
+            nameStem: stem,
+          }).then((r) => {
+            documents[key] = r.path;
+          }),
+        );
+      };
+      queue(photoFile, 'photo', 'photo');
+      queue(bcFile, 'birth-certificate', 'birthCertificate');
+      queue(rcFile, 'report-card', 'previousReportCard');
+      queue(nidFile, 'guardian-nid', 'guardianNid');
+      await Promise.all(jobs);
 
       // ── Write to Firestore ──────────────────────────────────────
       const docRef = db.collection('admissionApplications').doc();
