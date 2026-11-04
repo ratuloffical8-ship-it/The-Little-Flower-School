@@ -37,6 +37,7 @@ interface ApplicationDetail {
     nameBn?: string;
     nameEn?: string;
     dob?: string;
+    dateOfBirth?: string;
     gender?: string;
     bloodGroup?: string;
     religion?: string;
@@ -45,6 +46,11 @@ interface ApplicationDetail {
     previousSchool?: string;
   };
   guardian?: {
+    fatherName?: string;
+    motherName?: string;
+    presentAddress?: string;
+    permanentAddress?: string;
+    monthlyIncome?: string | number;
     name?: string;
     relation?: string;
     mobile?: string;
@@ -75,6 +81,21 @@ const STATUS_PILL: Record<string, string> = {
   correction_needed: 'bg-orange-100 text-orange-800',
   approved: 'bg-green-100 text-green-800',
   rejected: 'bg-red-100 text-red-800',
+};
+
+const CLASS_NAMES: Record<string, [string, string]> = {
+  play: ['প্লে', 'Play'],
+  nursery: ['নার্সারি', 'Nursery'],
+  '1': ['প্রথম শ্রেণি', 'Class 1'],
+  '2': ['দ্বিতীয় শ্রেণি', 'Class 2'],
+  '3': ['তৃতীয় শ্রেণি', 'Class 3'],
+  '4': ['চতুর্থ শ্রেণি', 'Class 4'],
+  '5': ['পঞ্চম শ্রেণি', 'Class 5'],
+};
+const GENDER_NAMES: Record<string, [string, string]> = {
+  male: ['ছেলে', 'Male'],
+  female: ['মেয়ে', 'Female'],
+  other: ['অন্যান্য', 'Other'],
 };
 
 function humanize(s: string): string {
@@ -276,16 +297,30 @@ export default function AdmissionDetailPage() {
             <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
               <Field label={tr('নাম (বাংলা)', 'Name (Bengali)')} value={app.student?.nameBn} />
               <Field label={tr('নাম (ইংরেজি)', 'Name (English)')} value={app.student?.nameEn} />
-              <Field label={tr('শ্রেণি', 'Class')} value={app.classApplyingFor} />
-              <Field label={tr('জন্ম তারিখ', 'Date of birth')} value={app.student?.dob} />
-              <Field label={tr('লিঙ্গ', 'Gender')} value={app.student?.gender} />
+              <Field
+                label={tr('যে শ্রেণিতে ভর্তি হতে চায়', 'Applying for class')}
+                value={
+                  app.classApplyingFor
+                    ? CLASS_NAMES[app.classApplyingFor]
+                      ? tr(...CLASS_NAMES[app.classApplyingFor])
+                      : app.classApplyingFor
+                    : ''
+                }
+              />
+              <Field label={tr('জন্ম তারিখ', 'Date of birth')} value={app.student?.dob || app.student?.dateOfBirth} />
+              <Field
+                label={tr('লিঙ্গ', 'Gender')}
+                value={
+                  app.student?.gender
+                    ? GENDER_NAMES[app.student.gender]
+                      ? tr(...GENDER_NAMES[app.student.gender])
+                      : app.student.gender
+                    : ''
+                }
+              />
               <Field label={tr('রক্তের গ্রুপ', 'Blood group')} value={app.student?.bloodGroup} />
               <Field label={tr('ধর্ম', 'Religion')} value={app.student?.religion} />
               <Field label={tr('জাতীয়তা', 'Nationality')} value={app.student?.nationality} />
-              <Field
-                label={tr('জন্ম সনদ নম্বর', 'Birth certificate no.')}
-                value={app.student?.birthCertificateNo}
-              />
               <Field
                 label={tr('পূর্ববর্তী বিদ্যালয়', 'Previous school')}
                 value={app.student?.previousSchool}
@@ -298,7 +333,9 @@ export default function AdmissionDetailPage() {
               {tr('অভিভাবকের তথ্য', 'Guardian information')}
             </h2>
             <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-              <Field label={tr('নাম', 'Name')} value={app.guardian?.name} />
+              <Field label={tr('পিতার নাম', "Father's name")} value={app.guardian?.fatherName} />
+              <Field label={tr('মাতার নাম', "Mother's name")} value={app.guardian?.motherName} />
+              <Field label={tr('অভিভাবকের নাম', 'Guardian name')} value={app.guardian?.name} />
               <Field label={tr('সম্পর্ক', 'Relation')} value={app.guardian?.relation} />
               <Field label={tr('মোবাইল', 'Mobile')} value={app.guardian?.mobile} />
               <Field label={tr('বিকল্প মোবাইল', 'Alt. mobile')} value={app.guardian?.altMobile} />
@@ -306,8 +343,17 @@ export default function AdmissionDetailPage() {
               <Field label={tr('ইমেইল', 'Email')} value={app.guardian?.email} />
               <Field label={tr('পেশা', 'Occupation')} value={app.guardian?.occupation} />
               <Field
-                label={tr('ঠিকানা', 'Address')}
-                value={app.guardian?.address}
+                label={tr('মাসিক আয় (টাকা)', 'Monthly income (BDT)')}
+                value={app.guardian?.monthlyIncome != null ? String(app.guardian.monthlyIncome) : ''}
+              />
+              <Field
+                label={tr('বর্তমান ঠিকানা', 'Present address')}
+                value={app.guardian?.presentAddress || app.guardian?.address}
+                full
+              />
+              <Field
+                label={tr('স্থায়ী ঠিকানা', 'Permanent address')}
+                value={app.guardian?.permanentAddress}
                 full
               />
             </dl>
