@@ -34,7 +34,20 @@ function parse<T extends z.ZodTypeAny>(schema: T, data: unknown): z.infer<T> {
 }
 
 const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
-const bdMobile = z.string().trim().regex(/^(?:\+?88)?01[3-9]\d{8}$/, 'Invalid mobile number');
+const cleanMobile = (v: unknown) => {
+  if (typeof v !== 'string') return v;
+  let d = v.replace(/\D/g, '');
+  if (d.startsWith('880') && d.length === 13) d = d.slice(2);
+  d = d.replace(/^0+/, '');
+  if (d.length === 10 && d.startsWith('1')) d = '0' + d;
+  return d;
+};
+const bdMobile = z.preprocess(
+  cleanMobile,
+  z.string().trim().regex(/^(?:\+?88)?01[3-9]\d{8}$/, 'Invalid mobile number'),
+);
+
+export const PAYMENT_PURPOSES = ['monthly_fee', 'exam_fee', 'admission_fee', 'session_fee', 'due', 'other'] as const;
 
 const submitSchema = z.object({
   studentId: z
@@ -52,6 +65,8 @@ const submitSchema = z.object({
   senderNumber: bdMobile,
   amount: z.coerce.number().positive().max(1_000_000),
   invoiceId: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(60).optional()),
+  purpose: z.preprocess(emptyToUndefined, z.enum(PAYMENT_PURPOSES).default('monthly_fee')),
+  note: z.preprocess(emptyToUndefined, z.string().trim().max(200).optional()),
 });
 
 const pageFields = {
