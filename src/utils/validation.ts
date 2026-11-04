@@ -205,13 +205,36 @@ export const resultLookupSchema = z.object({
 /**
  * Payment submission
  */
+/** Cleans a BD mobile number typed in different ways: +88017…, 8801…, 0017…, spaces, dashes. */
+export function normalizeBdMobile(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  let d = v.replace(/\D/g, '');
+  if (d.startsWith('880') && d.length === 13) d = d.slice(2);
+  d = d.replace(/^0+/, '');
+  if (d.length === 10 && d.startsWith('1')) d = '0' + d;
+  return d;
+}
+
+export const PAYMENT_PURPOSES = [
+  { value: 'monthly_fee', bn: 'মাসিক বেতন', en: 'Monthly tuition fee' },
+  { value: 'exam_fee', bn: 'পরীক্ষার ফি', en: 'Exam fee' },
+  { value: 'admission_fee', bn: 'ভর্তি ফি', en: 'Admission fee' },
+  { value: 'session_fee', bn: 'সেশন ফি', en: 'Session fee' },
+  { value: 'due', bn: 'বকেয়া', en: 'Previous dues' },
+  { value: 'other', bn: 'অন্যান্য', en: 'Other' },
+] as const;
+
 export const paymentSubmissionSchema = z.object({
+  purpose: z.enum(['monthly_fee', 'exam_fee', 'admission_fee', 'session_fee', 'due', 'other'], {
+    errorMap: () => ({ message: 'কিসের জন্য টাকা দিচ্ছেন বেছে নিন / Choose what you are paying for' }),
+  }),
+  note: z.string().trim().max(200, 'সর্বোচ্চ ২০০ অক্ষর').optional(),
   studentId: z
     .string()
     .trim()
     .regex(/^TLFS-STU-\d{4}-\d{4}$/i, 'সঠিক স্টুডেন্ট আইডি দিন (TLFS-STU-2026-0001) / Enter a valid Student ID'),
-  mobile: bdPhoneSchema,
-  senderNumber: bdPhoneSchema,
+  mobile: z.string().transform((v) => String(normalizeBdMobile(v))).pipe(bdPhoneSchema),
+  senderNumber: z.string().transform((v) => String(normalizeBdMobile(v))).pipe(bdPhoneSchema),
   provider: z.enum(['bkash', 'nagad']),
   trxId: z
     .string()
