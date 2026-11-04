@@ -63,6 +63,16 @@ const STATUS_PILL: Record<string, string> = {
   rejected: 'bg-red-100 text-red-800',
 };
 
+const CLASS_NAMES: Record<string, [string, string]> = {
+  play: ['প্লে', 'Play'],
+  nursery: ['নার্সারি', 'Nursery'],
+  '1': ['প্রথম শ্রেণি', 'Class 1'],
+  '2': ['দ্বিতীয় শ্রেণি', 'Class 2'],
+  '3': ['তৃতীয় শ্রেণি', 'Class 3'],
+  '4': ['চতুর্থ শ্রেণি', 'Class 4'],
+  '5': ['পঞ্চম শ্রেণি', 'Class 5'],
+};
+
 function humanize(s: string): string {
   return s
     .split('_')
@@ -283,7 +293,13 @@ export default function AdmissionsListPage() {
                       {it.applicationId}
                     </td>
                     <td className="px-4 py-3">{name}</td>
-                    <td className="px-4 py-3">{it.classApplyingFor ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      {it.classApplyingFor
+                        ? CLASS_NAMES[it.classApplyingFor]
+                          ? tr(...CLASS_NAMES[it.classApplyingFor])
+                          : it.classApplyingFor
+                        : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <div>{it.guardian?.name ?? '—'}</div>
                       <div className="text-xs text-ink/60">
@@ -344,4 +360,4 @@ export default function AdmissionsListPage() {
       )}
     </div>
   );
-  }
+   }
