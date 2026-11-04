@@ -70,10 +70,11 @@ export async function queryAuditLogs(options: {
     query = query.where('actorUid', '==', options.actorUid);
   }
 
-  const snap = await query
-    .orderBy('at', 'desc')
-    .limit(options.limit ?? 50)
-    .get();
-
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  // Sort in memory: no Firestore composite index needed.
+  const snap = await query.get();
+  const millis = (v: unknown): number => (v as { toMillis?: () => number })?.toMillis?.() ?? 0;
+  return snap.docs
+    .sort((a, b) => millis(b.data().at) - millis(a.data().at))
+    .slice(0, options.limit ?? 50)
+    .map((doc) => ({ id: doc.id, ...doc.data() }));
       }
