@@ -19,6 +19,8 @@ export interface PaymentRecord {
   trxId: string;
   senderNumber: string;
   amount: number;
+  purpose?: string;
+  note?: string;
   status: PaymentStatus;
   screenshotPath?: string;
   screenshotUrl?: string;
@@ -37,6 +39,8 @@ export interface SubmitPaymentInput {
   senderNumber: string;
   amount: number;
   invoiceId?: string;
+  purpose?: string;
+  note?: string;
 }
 
 export interface PaymentFile {
@@ -138,6 +142,8 @@ export async function submitPayment(input: SubmitPaymentInput, file?: PaymentFil
       trxId: input.trxId,
       senderNumber: input.senderNumber,
       amount: input.amount,
+      purpose: input.purpose ?? 'monthly_fee',
+      ...(input.note ? { note: input.note } : {}),
       status: 'pending',
       ...(screenshotPath ? { screenshotPath } : {}),
       createdAt: FieldValue.serverTimestamp(),
@@ -156,11 +162,14 @@ export async function listPayments(
   if (status) q = q.where('status', '==', status);
   if (provider) q = q.where('provider', '==', provider);
   if (studentId) q = q.where('studentId', '==', studentId);
-  q = q.orderBy('createdAt', 'desc');
-
-  const total = (await q.count().get()).data().count;
-  const snap = await q.offset((page - 1) * pageSize).limit(pageSize).get();
-  const items = await Promise.all(snap.docs.map((d) => withScreenshotUrl(toRecord(d))));
+  // Sort + paginate in memory: no Firestore composite index needed.
+  const snap = await q.get();
+  const all = snap.docs
+    .map(toRecord)
+    .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0));
+  const total = all.length;
+  const pageItems = all.slice((page - 1) * pageSize, page * pageSize);
+  const items = await Promise.all(pageItems.map((p) => withScreenshotUrl(p)));
 
   return { items, total, page, pageSize };
 }
@@ -215,4 +224,4 @@ export async function reviewPayment(
   });
 
   return (await getPaymentById(id)) as PaymentRecord;
-  }
+    }
