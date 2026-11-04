@@ -6,6 +6,17 @@ import { useLanguage } from '../../../hooks/useLanguage';
 
 type PaymentStatus = 'pending' | 'verified' | 'rejected';
 
+const PURPOSES: Record<string, [string, string]> = {
+  monthly_fee: ['মাসিক বেতন', 'Monthly tuition fee'],
+  exam_fee: ['পরীক্ষার ফি', 'Exam fee'],
+  admission_fee: ['ভর্তি ফি', 'Admission fee'],
+  session_fee: ['সেশন ফি', 'Session fee'],
+  due: ['বকেয়া', 'Previous dues'],
+  other: ['অন্যান্য', 'Other'],
+};
+const purposeLabel = (p: string | undefined, bn: boolean) =>
+  p && PURPOSES[p] ? (bn ? PURPOSES[p][0] : PURPOSES[p][1]) : '—';
+
 interface PaymentItem {
   id: string;
   studentId: string;
@@ -14,6 +25,8 @@ interface PaymentItem {
   trxId: string;
   senderNumber?: string;
   amount: number;
+  purpose?: string;
+  note?: string;
   status: PaymentStatus;
   screenshotUrl?: string;
   reviewNote?: string;
@@ -114,6 +127,10 @@ function ReviewModal({
             <dt className="w-28 text-ink/60">{tr('পরিমাণ', 'Amount')}</dt>
             <dd className="font-medium text-ink">৳ {Number(payment.amount).toLocaleString(isBengali ? 'bn-BD' : 'en-US')}</dd>
           </div>
+          <div className="flex gap-2"><dt className="w-28 text-ink/60">{tr('কিসের জন্য', 'Purpose')}</dt><dd className="font-medium text-ink">{purposeLabel(payment.purpose, isBengali)}</dd></div>
+          {payment.note && (
+            <div className="flex gap-2"><dt className="w-28 text-ink/60">{tr('বিস্তারিত', 'Details')}</dt><dd className="text-ink">{payment.note}</dd></div>
+          )}
           <div className="flex gap-2"><dt className="w-28 text-ink/60">{tr('ইনভয়েস', 'Invoice')}</dt><dd className="font-mono text-ink">{payment.invoiceId || '—'}</dd></div>
         </dl>
 
@@ -294,7 +311,7 @@ export default function PaymentsListPage() {
                 <th className="py-2 pr-3">{tr('শিক্ষার্থী', 'Student')}</th>
                 <th className="py-2 pr-3">{tr('মাধ্যম / TrxID', 'Provider / TrxID')}</th>
                 <th className="py-2 pr-3 text-right">{tr('পরিমাণ', 'Amount')}</th>
-                <th className="py-2 pr-3">{tr('ইনভয়েস', 'Invoice')}</th>
+                <th className="py-2 pr-3">{tr('কিসের জন্য', 'Purpose')}</th>
                 <th className="py-2 pr-3">{tr('অবস্থা', 'Status')}</th>
                 <th className="py-2 text-right">{tr('কাজ', 'Actions')}</th>
               </tr>
@@ -309,7 +326,11 @@ export default function PaymentsListPage() {
                     <div className="font-mono text-xs text-ink/70">{p.trxId}</div>
                   </td>
                   <td className="py-2 pr-3 text-right whitespace-nowrap">৳ {Number(p.amount).toLocaleString(isBengali ? 'bn-BD' : 'en-US')}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{p.invoiceId || '—'}</td>
+                  <td className="py-2 pr-3 text-xs">
+                    <div>{purposeLabel(p.purpose, isBengali)}</div>
+                    {p.note && <div className="text-ink/60">{p.note}</div>}
+                    {p.invoiceId && <div className="font-mono text-ink/50">{p.invoiceId}</div>}
+                  </td>
                   <td className="py-2 pr-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs ${statusClass[p.status] ?? 'bg-gray-200 text-gray-700'}`}>
                       {statusLabel[p.status] ?? p.status}
@@ -362,4 +383,4 @@ export default function PaymentsListPage() {
       )}
     </div>
   );
-              }
+                                          }
