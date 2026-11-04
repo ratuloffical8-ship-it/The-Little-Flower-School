@@ -68,12 +68,22 @@ export async function listInvoices(
   let q: FirebaseFirestore.Query = db.collection(INVOICES_COLLECTION);
   if (studentId) q = q.where('studentId', '==', studentId);
   if (status) q = q.where('status', '==', status);
-  q = q.orderBy('createdAt', 'desc');
+const tsMillis = (v: unknown): number => {
+  const x = v as { toMillis?: () => number; _seconds?: number } | string | number | undefined;
+  if (!x) return 0;
+  if (typeof x === 'string') return Date.parse(x) || 0;
+  if (typeof x === 'number') return x;
+  if (typeof x.toMillis === 'function') return x.toMillis();
+  if (typeof x._seconds === 'number') return x._seconds * 1000;
+  return 0;
+};
 
-  const total = (await q.count().get()).data().count;
-  const snap = await q.offset((page - 1) * pageSize).limit(pageSize).get();
+  const snap = await q.get();
+  const docs = snap.docs.sort((a, b) => tsMillis(b.data().createdAt) - tsMillis(a.data().createdAt));
+  const total = docs.length;
+  const items = docs.slice((page - 1) * pageSize, page * pageSize).map(toRecord);
 
-  return { items: snap.docs.map(toRecord), total, page, pageSize };
+  return { items, total, page, pageSize };
 }
 
 export async function createInvoice(input: CreateInvoiceInput, actorUid: string): Promise<InvoiceRecord> {
@@ -111,4 +121,4 @@ export async function cancelInvoice(id: string): Promise<InvoiceRecord> {
 
   await ref.update({ status: 'cancelled', updatedAt: FieldValue.serverTimestamp() });
   return (await getInvoiceById(id)) as InvoiceRecord;
-  }
+}
