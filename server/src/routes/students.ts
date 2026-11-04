@@ -45,7 +45,7 @@ const listSchema = z.object({
   ),
   search: z.preprocess(emptyToUndefined, z.string().trim().max(40).optional()),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  pageSize: z.coerce.number().int().min(1).max(500).default(20),
 });
 
 const guardianSchema = z.object({
