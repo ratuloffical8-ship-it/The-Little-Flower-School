@@ -100,16 +100,14 @@ router.get(
       let query: FirebaseFirestore.Query = db.collection(COLLECTION);
       if (status) query = query.where('status', '==', status);
 
-      const countSnap = await query.count().get();
-      const total = countSnap.data().count;
+      // Sort + paginate in memory: no Firestore composite index needed.
+      const snapAll = await query.get();
+      const millis = (v: unknown): number => (v as { toMillis?: () => number })?.toMillis?.() ?? 0;
+      const sorted = snapAll.docs.sort((a, b) => millis(b.data().createdAt) - millis(a.data().createdAt));
+      const total = sorted.length;
+      const pageDocs = sorted.slice((page - 1) * pageSize, page * pageSize);
 
-      const snap = await query
-        .orderBy('createdAt', 'desc')
-        .offset((page - 1) * pageSize)
-        .limit(pageSize)
-        .get();
-
-      const items = snap.docs.map((doc) => {
+      const items = pageDocs.map((doc) => {
         const d = doc.data();
         return {
           id: doc.id,
