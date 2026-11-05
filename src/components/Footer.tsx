@@ -2,9 +2,13 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Facebook, Youtube } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useSiteSettings, isBlank } from '@/hooks/useSiteSettings';
 
 export default function Footer() {
   const { t, isBengali } = useLanguage();
+  const site = useSiteSettings();
+  const facebook = site?.socialLinks?.facebook;
+  const youtube = site?.socialLinks?.youtube;
   const currentYear = new Date().getFullYear();
 
   return (
@@ -78,18 +82,24 @@ export default function Footer() {
               {t('footer.contactUs')}
             </h3>
             <ul className="space-y-2.5 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin size={14} className="mt-0.5 shrink-0 text-gold-soft" />
-                <span>{t('common.editableSample')}</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone size={14} className="shrink-0 text-gold-soft" />
-                <span>{t('common.editableSample')}</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Mail size={14} className="shrink-0 text-gold-soft" />
-                <span>{t('common.editableSample')}</span>
-              </li>
+              {!isBlank(site?.address) && (
+                <li className="flex items-start gap-2">
+                  <MapPin size={14} className="mt-0.5 shrink-0 text-gold-soft" />
+                  <span>{site?.address}</span>
+                </li>
+              )}
+              {!isBlank(site?.phone) && (
+                <li className="flex items-center gap-2">
+                  <Phone size={14} className="shrink-0 text-gold-soft" />
+                  <a href={`tel:${site?.phone}`} className="hover:text-white">{site?.phone}</a>
+                </li>
+              )}
+              {!isBlank(site?.email) && (
+                <li className="flex items-center gap-2">
+                  <Mail size={14} className="shrink-0 text-gold-soft" />
+                  <a href={`mailto:${site?.email}`} className="break-all hover:text-white">{site?.email}</a>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -99,28 +109,34 @@ export default function Footer() {
               {t('footer.followUs')}
             </h3>
             <div className="flex gap-3">
-              <a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg bg-white/5 p-2.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="Facebook"
-              >
-                <Facebook size={18} />
-              </a>
-              <a
-                href="#"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-lg bg-white/5 p-2.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-                aria-label="YouTube"
-              >
-                <Youtube size={18} />
-              </a>
+              {facebook && (
+                <a
+                  href={facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="Facebook"
+                >
+                  <Facebook size={18} /> Facebook
+                </a>
+              )}
+              {youtube && (
+                <a
+                  href={youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2.5 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                  aria-label="YouTube"
+                >
+                  <Youtube size={18} /> YouTube
+                </a>
+              )}
+              {!facebook && !youtube && (
+                <p className="text-xs text-white/40">
+                  {isBengali ? 'শীঘ্রই আসছে' : 'Coming soon'}
+                </p>
+              )}
             </div>
-            <p className="mt-4 text-xs text-white/40">
-              {t('common.editableSample')}
-            </p>
           </div>
         </div>
 
@@ -141,4 +157,4 @@ export default function Footer() {
       </div>
     </footer>
   );
-      }
+          }
