@@ -25,7 +25,7 @@ router.get(
   rateLimit({ windowMs: 60_000, max: 60 }),
   ah(async (_req, res) => {
     const item = await getPublicSettings();
-    res.set('Cache-Control', 'public, max-age=300');
+    res.set('Cache-Control', 'public, max-age=30');
     res.json({ item });
   }),
 );
