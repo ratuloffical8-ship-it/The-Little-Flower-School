@@ -42,6 +42,9 @@ const InvoicesListPage = lazy(() => import('@/features/admin/payments/InvoicesLi
 const ExpensesListPage = lazy(() => import('@/features/admin/expenses/ExpensesListPage'));
 const ReportsPage = lazy(() => import('@/features/admin/reports/ReportsPage'));
 const SettingsPage = lazy(() => import('@/features/admin/settings/SettingsPage'));
+const ClassesPage = lazy(() => import('@/features/admin/classes/ClassesPage'));
+const AuditLogsPage = lazy(() => import('@/features/admin/audit/AuditLogsPage'));
+const BackupPage = lazy(() => import('@/features/admin/backup/BackupPage'));
 const UsersListPage = lazy(() => import('@/features/admin/users/UsersListPage'));
 
 /* ── Admin guard: only signed-in admins reach the admin shell ── */
@@ -98,9 +101,9 @@ function App() {
           <Route path="contacts" element={<Navigate to="/admine/contact" replace />} />
           <Route path="admins" element={<Navigate to="/admine/users" replace />} />
           <Route path="results" element={<Navigate to="/admine/exams" replace />} />
-          <Route path="classes" element={<Navigate to="/admine" replace />} />
-          <Route path="logs" element={<Navigate to="/admine" replace />} />
-          <Route path="backup" element={<Navigate to="/admine" replace />} />
+          <Route path="classes" element={<ClassesPage />} />
+          <Route path="logs" element={<AuditLogsPage />} />
+          <Route path="backup" element={<BackupPage />} />
         </Route>
 
         {/* ── Public site ── */}
