@@ -17,6 +17,19 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import SEOHead from '@/components/SEOHead';
+import { useSiteSettings, isBlank } from '@/hooks/useSiteSettings';
+import { useApi } from '@/hooks/useApi';
+import { useEffect } from 'react';
+import { formatDate } from '@/utils/format';
+
+interface HomeNotice {
+  id: string;
+  titleBn: string;
+  titleEn: string;
+  descriptionBn?: string;
+  descriptionEn?: string;
+  date?: string;
+}
 
 /* ── Quick Action Cards ── */
 
@@ -39,7 +52,20 @@ const FACILITIES = [
 /* ── Component ── */
 
 export default function HomePage() {
-  const { t, isBengali } = useLanguage();
+  const { t, isBengali, locale } = useLanguage();
+  const site = useSiteSettings();
+  const noticesApi = useApi<{ items: HomeNotice[] }>('get', '/api/notices/published');
+  const { execute: loadNotices } = noticesApi;
+  useEffect(() => {
+    loadNotices();
+  }, [loadNotices]);
+  const latestNotices = (noticesApi.data?.items ?? []).slice(0, 3);
+
+  const aboutText = !isBlank(site?.aboutText) ? site!.aboutText! : t('home.aboutText');
+  const admissionText = !isBlank(site?.admissionText) ? site!.admissionText! : t('home.admissionText');
+  const principalMessage = !isBlank(site?.principalMessage) ? site!.principalMessage! : t('home.principalText');
+  const principalName = !isBlank(site?.principalName) ? site!.principalName! : '';
+  const principalTitle = !isBlank(site?.principalTitle) ? site!.principalTitle! : t('home.principalTitle');
 
   return (
     <>
@@ -142,7 +168,7 @@ export default function HomePage() {
             <h2 className="section-title">{t('home.aboutTitle')}</h2>
             <div className="mt-1 h-1 w-10 rounded-full bg-gold" />
             <p className="mt-4 text-sm leading-relaxed text-ink-light md:text-base">
-              {t('home.aboutText')}
+              {aboutText}
             </p>
             <Link
               to="/school-info"
@@ -153,8 +179,8 @@ export default function HomePage() {
           </div>
           <div className="rounded-2xl bg-navy/5 p-8 text-center">
             <GraduationCap size={64} className="mx-auto text-navy/20" />
-            <p className="mt-4 text-sm text-ink-light">
-              {t('common.editableSample')}
+            <p className="mt-4 text-sm font-semibold text-navy">
+              {isBengali ? 'শিক্ষায় উৎকর্ষ, নৈতিকতায় বিকাশ' : 'Excellence in education, growth in values'}
             </p>
           </div>
         </div>
@@ -170,7 +196,7 @@ export default function HomePage() {
               {t('home.admissionAnnouncement')}
             </h2>
             <p className="mt-2 text-sm text-white/70">
-              {t('home.admissionText')}
+              {admissionText}
             </p>
           </div>
           <Link to="/admission" className="btn-primary shrink-0">
@@ -187,11 +213,11 @@ export default function HomePage() {
           <h2 className="section-title">{t('home.principalMessage')}</h2>
           <div className="mx-auto mt-1 h-1 w-10 rounded-full bg-gold" />
           <blockquote className="mt-6 text-sm leading-relaxed text-ink-light italic md:text-base">
-            "{t('home.principalText')}"
+            "{principalMessage}"
           </blockquote>
           <div className="mt-4">
-            <p className="font-semibold text-navy">{t('home.principalName')}</p>
-            <p className="text-xs text-ink-light">{t('home.principalTitle')}</p>
+            {principalName && <p className="font-semibold text-navy">{principalName}</p>}
+            <p className="text-xs text-ink-light">{principalTitle}</p>
           </div>
         </div>
       </section>
@@ -238,18 +264,19 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card">
-              <div className="mb-2 text-xs text-ink-light">
-                {t('common.editableSample')}
-              </div>
-              <h3 className="text-sm font-semibold text-navy">
-                {t('common.editableSample')}
-              </h3>
+          {latestNotices.length === 0 && (
+            <p className="text-sm text-ink-light md:col-span-3">
+              {isBengali ? 'এখনো কোনো নোটিশ প্রকাশিত হয়নি।' : 'No notices published yet.'}
+            </p>
+          )}
+          {latestNotices.map((n) => (
+            <Link to="/notices" key={n.id} className="card block transition-shadow hover:shadow-md">
+              <div className="mb-2 text-xs text-ink-light">{formatDate(n.date ?? '', locale)}</div>
+              <h3 className="text-sm font-semibold text-navy">{isBengali ? n.titleBn : n.titleEn}</h3>
               <p className="mt-1 text-xs text-ink-light line-clamp-2">
-                {t('common.editableSample')}
+                {isBengali ? n.descriptionBn : n.descriptionEn}
               </p>
-            </div>
+            </Link>
           ))}
         </div>
         <Link
@@ -296,7 +323,9 @@ export default function HomePage() {
           <div className="card bg-surface">
             <CreditCard size={32} className="text-navy/20" />
             <p className="mt-3 text-sm text-ink-light">
-              {t('common.editableSample')}
+              {isBlank(site?.bkashNumber) && isBlank(site?.nagadNumber)
+                ? isBengali ? 'বিকাশ ও নগদে ফি জমা দেওয়া যায়।' : 'Fees can be paid via bKash and Nagad.'
+                : `${!isBlank(site?.bkashNumber) ? `bKash: ${site?.bkashNumber}` : ''}${!isBlank(site?.bkashNumber) && !isBlank(site?.nagadNumber) ? '  ·  ' : ''}${!isBlank(site?.nagadNumber) ? `Nagad: ${site?.nagadNumber}` : ''}`}
             </p>
           </div>
         </div>
@@ -367,21 +396,21 @@ export default function HomePage() {
               <MapPin size={18} className="mt-0.5 shrink-0 text-gold" />
               <div>
                 <p className="text-sm font-semibold text-white">{t('contact.address')}</p>
-                <p className="mt-1 text-sm">{t('common.editableSample')}</p>
+                <p className="mt-1 text-sm">{isBlank(site?.address) ? '—' : site?.address}</p>
               </div>
             </div>
             <div className="flex items-start gap-3 text-white/80">
               <Phone size={18} className="mt-0.5 shrink-0 text-gold" />
               <div>
                 <p className="text-sm font-semibold text-white">{t('contact.phoneLabel')}</p>
-                <p className="mt-1 text-sm">{t('common.editableSample')}</p>
+                <p className="mt-1 text-sm">{isBlank(site?.phone) ? '—' : site?.phone}</p>
               </div>
             </div>
             <div className="flex items-start gap-3 text-white/80">
               <Mail size={18} className="mt-0.5 shrink-0 text-gold" />
               <div>
                 <p className="text-sm font-semibold text-white">{t('contact.emailLabel')}</p>
-                <p className="mt-1 text-sm">{t('common.editableSample')}</p>
+                <p className="mt-1 text-sm break-all">{isBlank(site?.email) ? '—' : site?.email}</p>
               </div>
             </div>
           </div>
@@ -394,4 +423,4 @@ export default function HomePage() {
       </section>
     </>
   );
-            }
+}
