@@ -30,14 +30,36 @@ const optionalMobile = z
   .trim()
   .regex(/^(?:(?:\+?88)?01[3-9]\d{8})?$/, 'Invalid Bangladeshi mobile number');
 
+// A link may be typed without "https://" — add it. Empty clears the link.
+const optionalUrl = z.preprocess(
+  (v) => {
+    if (typeof v !== 'string') return v;
+    const t = v.trim();
+    if (!t) return '';
+    return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+  },
+  z.string().max(300).refine((v) => v === '' || /^https?:\/\/[^\s]+\.[^\s]+$/i.test(v), 'Invalid link'),
+);
+
 const updateSchema = z
   .object({
-    schoolName: z.string().trim().min(1).max(150),
+    schoolNameBn: z.string().trim().min(1).max(150),
+    schoolNameEn: z.string().trim().min(1).max(150),
     address: z.string().trim().max(300),
     phone: z.string().trim().max(30),
     email: z.union([z.literal(''), z.string().trim().toLowerCase().email().max(254)]),
     bkashNumber: optionalMobile,
     nagadNumber: optionalMobile,
+    facebook: optionalUrl,
+    youtube: optionalUrl,
+    mapUrl: optionalUrl,
+    aboutText: z.string().trim().max(1200),
+    admissionText: z.string().trim().max(500),
+    officeHours: z.string().trim().max(120),
+    principalName: z.string().trim().max(100),
+    principalTitle: z.string().trim().max(100),
+    principalMessage: z.string().trim().max(2000),
+    admissionOpen: z.boolean(),
   })
   .partial()
   .strict()
@@ -55,8 +77,15 @@ router.get(
 router.put(
   '/',
   ah(async (req, res) => {
-    const body = parse(updateSchema, req.body);
-    await updateSettings(body);
+    const { facebook, youtube, ...rest } = parse(updateSchema, req.body);
+    const updates: Record<string, unknown> = { ...rest };
+    if (facebook !== undefined || youtube !== undefined) {
+      updates.socialLinks = {
+        ...(facebook !== undefined ? { facebook } : {}),
+        ...(youtube !== undefined ? { youtube } : {}),
+      };
+    }
+    await updateSettings(updates);
     await logAudit({
       actorUid: req.user!.uid,
       action: 'settings.update',
