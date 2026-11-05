@@ -16,6 +16,7 @@ import { useApi } from '@/hooks/useApi';
 import SEOHead from '@/components/SEOHead';
 import ServerWaking from '@/components/ServerWaking';
 import { contactFormSchema } from '@/utils/validation';
+import { useSiteSettings, isBlank } from '@/hooks/useSiteSettings';
 
 type FormData = {
   name: string;
@@ -28,6 +29,7 @@ type FormData = {
 
 export default function ContactPage() {
   const { t, isBengali } = useLanguage();
+  const site = useSiteSettings();
   const [submitted, setSubmitted] = useState(false);
 
   const {
@@ -92,8 +94,18 @@ export default function ContactPage() {
                     {t('contact.address')}
                   </h3>
                   <p className="mt-1 text-sm text-ink-light">
-                    {t('common.editableSample')}
+                    {isBlank(site?.address) ? '—' : site?.address}
                   </p>
+                  {!isBlank(site?.mapUrl) && (
+                    <a
+                      href={site?.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1 inline-block text-sm font-semibold text-royal hover:underline"
+                    >
+                      {isBengali ? 'মানচিত্রে দেখুন' : 'View on map'}
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -106,7 +118,7 @@ export default function ContactPage() {
                     {t('contact.phoneLabel')}
                   </h3>
                   <p className="mt-1 text-sm text-ink-light">
-                    {t('common.editableSample')}
+                    {isBlank(site?.phone) ? '—' : site?.phone}
                   </p>
                 </div>
               </div>
@@ -120,7 +132,7 @@ export default function ContactPage() {
                     {t('contact.emailLabel')}
                   </h3>
                   <p className="mt-1 text-sm text-ink-light">
-                    {t('common.editableSample')}
+                    {isBlank(site?.email) ? '—' : site?.email}
                   </p>
                 </div>
               </div>
@@ -134,7 +146,7 @@ export default function ContactPage() {
                     {t('contact.hours')}
                   </h3>
                   <p className="mt-1 text-sm text-ink-light">
-                    {t('common.editableSample')}
+                    {isBlank(site?.officeHours) ? '—' : site?.officeHours}
                   </p>
                 </div>
               </div>
@@ -287,4 +299,4 @@ export default function ContactPage() {
       </section>
     </>
   );
-        }
+    }
