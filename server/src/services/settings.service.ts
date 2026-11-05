@@ -34,24 +34,35 @@ export interface SchoolSettings {
   admissionOpen: boolean;
   heroImage: string;
   principalName: string;
+  principalTitle: string;
   principalMessage: string;
+  /** Short text on the home page "About us" block (empty = built-in text) */
+  aboutText: string;
+  /** Text of the "Admission is open" banner on the home page */
+  admissionText: string;
+  /** e.g. "রবি–বৃহস্পতি, সকাল ৯টা – দুপুর ২টা" */
+  officeHours: string;
 }
 
 const DEFAULT_SETTINGS: SchoolSettings = {
   schoolNameBn: 'দি লিটল ফ্লাওয়ার স্কুল',
   schoolNameEn: 'The Little Flower School',
   establishedYear: 2016,
-  address: 'Editable sample content — replace with real address',
-  phone: '01XXXXXXXXX',
-  email: 'info@example.com',
-  bkashNumber: '01XXXXXXXXX',
-  nagadNumber: '01XXXXXXXXX',
+  address: '',
+  phone: '',
+  email: '',
+  bkashNumber: '',
+  nagadNumber: '',
   mapUrl: '',
   socialLinks: { facebook: '', youtube: '' },
   admissionOpen: true,
   heroImage: '',
-  principalName: 'Editable sample content',
-  principalMessage: 'Editable sample content',
+  principalName: '',
+  principalTitle: '',
+  principalMessage: '',
+  aboutText: '',
+  admissionText: '',
+  officeHours: '',
 };
 
 /**
@@ -60,7 +71,16 @@ const DEFAULT_SETTINGS: SchoolSettings = {
 export async function getSettings(): Promise<SchoolSettings> {
   const snap = await db.collection(COLLECTION).doc(DOC_ID).get();
   if (!snap.exists) return { ...DEFAULT_SETTINGS };
-  return { ...DEFAULT_SETTINGS, ...(snap.data() as Partial<SchoolSettings>) };
+  const data = snap.data() as Partial<SchoolSettings>;
+  const clean = (v: unknown): unknown =>
+    typeof v === 'string' && /^(Editable sample content|01X{9}|info@example\.com)/.test(v) ? '' : v;
+  const merged = { ...DEFAULT_SETTINGS, ...data } as SchoolSettings;
+  // old placeholder texts saved by earlier versions are treated as empty
+  for (const k of ['address', 'phone', 'email', 'bkashNumber', 'nagadNumber', 'principalName', 'principalMessage'] as const) {
+    merged[k] = clean(merged[k]) as string;
+  }
+  merged.socialLinks = { ...DEFAULT_SETTINGS.socialLinks, ...(data.socialLinks ?? {}) };
+  return merged;
 }
 
 /**
@@ -74,7 +94,7 @@ export async function getPublicSettings(): Promise<SchoolSettings> {
  * Update settings (admin use). Merges with existing document.
  */
 export async function updateSettings(
-  updates: Partial<SchoolSettings>
+  updates: Record<string, unknown>
 ): Promise<SchoolSettings> {
   const ref = db.collection(COLLECTION).doc(DOC_ID);
   await ref.set(
@@ -102,4 +122,4 @@ export async function ensureDefaultSettings(): Promise<void> {
     });
     console.log('[SETTINGS] Created default school settings');
   }
-  }
+    }
