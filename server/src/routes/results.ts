@@ -35,14 +35,19 @@ function parse<T>(schema: z.ZodType<T>, data: unknown): T {
   return r.data;
 }
 
-const lookupSchema = z.object({
-  examId: z.string().trim().min(1).max(60),
-  roll: z.coerce
-    .string()
-    .trim()
-    .regex(/^\d{1,4}$/, 'Invalid roll number'),
-  mobile: z.string().trim().min(10).max(20),
-});
+const lookupSchema = z
+  .object({
+    examId: z.string().trim().min(1).max(60),
+    roll: z.coerce
+      .string()
+      .trim()
+      .regex(/^\d{1,4}$/, 'Invalid roll number')
+      .optional()
+      .or(z.literal('')),
+    studentId: z.string().trim().max(40).optional(),
+    mobile: z.string().trim().min(10).max(20),
+  })
+  .refine((v) => !!v.roll || !!v.studentId, { message: 'Roll or student ID is required' });
 
 const saveSchema = z.object({
   entries: z
