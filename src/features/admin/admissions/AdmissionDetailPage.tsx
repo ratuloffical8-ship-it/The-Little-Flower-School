@@ -5,6 +5,9 @@ import { useLanguage } from '../../../hooks/useLanguage';
 import { useAuth } from '../../../hooks/useAuth';
 import { useApiGet, useApi } from '../../../hooks/useApi';
 import ApproveModal from './ApproveModal';
+import PrintOverlay from '@/components/PrintOverlay';
+import AdmissionFormSheet from '@/components/AdmissionFormSheet';
+import { buildAdmissionForm } from '@/utils/admissionForm';
 
 type ApplicationStatus =
   | 'submitted'
@@ -146,6 +149,7 @@ export default function AdmissionDetailPage() {
 
   const [note, setNote] = useState('');
   const [showApprove, setShowApprove] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
@@ -273,14 +277,29 @@ export default function AdmissionDetailPage() {
           <h1 className="section-title mt-2">{studentName}</h1>
           <p className="font-mono text-xs text-ink/60">{app.applicationId}</p>
         </div>
-        <span
-          className={
-            'inline-block rounded-full px-3 py-1 text-sm font-medium ' + pill
-          }
-        >
-          {label ? tr(label.bn, label.en) : humanize(app.status)}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="rounded bg-navy px-4 py-2 text-sm font-medium text-white hover:bg-navy/90"
+          >
+            {tr('ভর্তি ফরম প্রিন্ট / PDF', 'Admission form / PDF')}
+          </button>
+          <span
+            className={
+              'inline-block rounded-full px-3 py-1 text-sm font-medium ' + pill
+            }
+          >
+            {label ? tr(label.bn, label.en) : humanize(app.status)}
+          </span>
+        </div>
       </div>
+
+      {showForm && (
+        <PrintOverlay onClose={() => setShowForm(false)}>
+          <AdmissionFormSheet data={buildAdmissionForm(null, app as unknown as Record<string, unknown>)} />
+        </PrintOverlay>
+      )}
 
       {actionError && (
         <div className="card border-l-4 border-l-red-600">
@@ -543,4 +562,4 @@ function Field({
       <dd className="mt-0.5 text-ink">{value || '—'}</dd>
     </div>
   );
-  }
+             }
