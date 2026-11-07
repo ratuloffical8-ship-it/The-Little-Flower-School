@@ -295,6 +295,12 @@ export default function ExamFormModal({ mode, classes, exam, onClose, onSaved }:
               </div>
             ))}
           </div>
+          <p className="rounded bg-amber-50 p-2 text-xs text-amber-900">
+            {tr(
+              'নিয়ম: বাংলা, ইংরেজি ও গণিতে পাস করতেই হবে (শিক্ষক বদলাতে পারবেন না)। অন্য বিষয়ে ফেল করলে শিক্ষক/অ্যাডমিন "বিবেচনায় পাস" দিতে পারবেন।',
+              'Rule: Bangla, English and Maths must be passed (cannot be overridden). For other subjects a teacher/admin may pass a student by consideration.',
+            )}
+          </p>
           <p className="text-xs text-ink/60">
             {tr(
               'পাস নম্বর খালি রাখলে পূর্ণ নম্বরের ৩৩% ধরা হবে।',
