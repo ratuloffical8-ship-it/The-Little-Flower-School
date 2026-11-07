@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Printer } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useApi } from '@/hooks/useApi';
 import SEOHead from '@/components/SEOHead';
@@ -11,6 +11,8 @@ import StatusBadge from '@/components/StatusBadge';
 import { statusLookupSchema } from '@/utils/validation';
 import { formatDate } from '@/utils/format';
 import type { StatusLookupResponse } from '@/types/admission';
+import PrintOverlay from '@/components/PrintOverlay';
+import AdmissionFormSheet from '@/components/AdmissionFormSheet';
 
 type FormData = {
   applicationId: string;
@@ -20,6 +22,7 @@ type FormData = {
 export default function AdmissionStatusPage() {
   const { t, isBengali, locale } = useLanguage();
   const [hasSearched, setHasSearched] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const {
     register,
@@ -73,13 +76,14 @@ export default function AdmissionStatusPage() {
             {/* Application ID */}
             <div>
               <label className="label">
-                {t('admission.applicationId')} <span className="text-error">*</span>
+                {isBengali ? 'আবেদন নম্বর বা শিক্ষার্থী আইডি' : 'Application No or Student ID'}{' '}
+                <span className="text-error">*</span>
               </label>
               <input
                 {...register('applicationId')}
                 type="text"
                 className="input-field"
-                placeholder="TLFS-APP-2025-000001"
+                placeholder="TLFS-APP-2026-000001 / TLFS-STU-2026-0001"
               />
               {errors.applicationId && (
                 <p className="error-text">{errors.applicationId.message}</p>
@@ -159,6 +163,26 @@ export default function AdmissionStatusPage() {
                 </span>
               </div>
 
+              {data.studentId && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-ink-light">
+                    {isBengali ? 'শিক্ষার্থী আইডি' : 'Student ID'}
+                  </span>
+                  <span className="text-sm font-semibold text-navy">{data.studentId}</span>
+                </div>
+              )}
+
+              {data.form && (
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  className="btn-primary w-full"
+                >
+                  <Printer size={16} />
+                  {isBengali ? 'ভর্তি ফরম দেখুন / PDF ডাউনলোড' : 'View admission form / PDF'}
+                </button>
+              )}
+
               {data.correctionNote && (
                 <div className="rounded-lg border border-warning/20 bg-warning/5 p-4">
                   <p className="text-xs font-semibold text-warning">
@@ -171,6 +195,12 @@ export default function AdmissionStatusPage() {
           )}
         </div>
       </section>
+
+      {showForm && data?.form && (
+        <PrintOverlay onClose={() => setShowForm(false)}>
+          <AdmissionFormSheet data={data.form} />
+        </PrintOverlay>
+      )}
     </>
   );
       }
