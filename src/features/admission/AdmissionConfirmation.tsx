@@ -1,19 +1,22 @@
 // src/features/admission/AdmissionConfirmation.tsx
 import { useLanguage } from '@/hooks/useLanguage';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import PrintOverlay from '@/components/PrintOverlay';
+import AdmissionFormSheet from '@/components/AdmissionFormSheet';
+import { classLabel } from '@/utils/classes';
+import type { AdmissionFormData } from '@/utils/admissionForm';
 
 interface Props {
   applicationId: string;
   studentName: string;
   className: string;
+  form?: AdmissionFormData;
 }
 
-export default function AdmissionConfirmation({ applicationId, studentName, className }: Props) {
+export default function AdmissionConfirmation({ applicationId, studentName, className, form }: Props) {
   const { isBengali } = useLanguage();
-
-  const handlePrint = () => {
-    window.print();
-  };
+  const [showForm, setShowForm] = useState(false);
 
   return (
     <div className="max-w-lg mx-auto text-center">
@@ -50,7 +53,7 @@ export default function AdmissionConfirmation({ applicationId, studentName, clas
             </p>
             <p>
               <span className="text-ink-light">{isBengali ? 'শ্রেণি:' : 'Class:'}</span>{' '}
-              <span className="font-medium">{className}</span>
+              <span className="font-medium">{classLabel(className, isBengali)}</span>
             </p>
           </div>
         </div>
@@ -81,14 +84,22 @@ export default function AdmissionConfirmation({ applicationId, studentName, clas
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center print:hidden">
-          <button onClick={handlePrint} className="btn-outline">
-            {isBengali ? '🖨️ প্রিন্ট করুন' : '🖨️ Print'}
-          </button>
+          {form && (
+            <button onClick={() => setShowForm(true)} className="btn-outline">
+              {isBengali ? '🖨️ ভর্তি ফরম ডাউনলোড / প্রিন্ট (PDF)' : '🖨️ Admission form / PDF'}
+            </button>
+          )}
           <Link to="/admission/status" className="btn-primary text-center">
             {isBengali ? 'স্ট্যাটাস চেক করুন' : 'Check Status'}
           </Link>
         </div>
       </div>
+
+      {showForm && form && (
+        <PrintOverlay onClose={() => setShowForm(false)}>
+          <AdmissionFormSheet data={form} />
+        </PrintOverlay>
+      )}
     </div>
   );
-          }
+        }
