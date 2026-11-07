@@ -128,8 +128,11 @@ export interface StatusLookupRequest {
 
 export interface StatusLookupResponse {
   applicationId: string;
+  studentId?: string;
+  /** Full form data for the printable admission form */
+  form?: import('@/utils/admissionForm').AdmissionFormData;
   status: AdmissionStatusKey;
-  statusLabel: { bn: string; en: string };
+  statusLabel?: { bn: string; en: string };
   statusChangedAt: string;
   correctionNote?: string;
-}
+                 }
