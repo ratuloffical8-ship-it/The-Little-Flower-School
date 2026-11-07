@@ -255,7 +255,7 @@ export default function AdmissionForm() {
         mobile: formData.mobile,
         email: formData.email,
         presentAddress: formData.presentAddress,
-        permanentAddress: formData.permanentAddress,
+        permanentAddress: formData.permanentAddress ?? '',
         monthlyIncome: formData.monthlyIncome,
       },
       photo: photoUrl,
