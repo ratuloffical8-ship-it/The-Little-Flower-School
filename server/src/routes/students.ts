@@ -12,6 +12,7 @@ import {
   updateStudent,
   deactivateStudent,
 } from '../services/student.service';
+import { getApplicationByApplicationId } from '../services/admission.service';
 
 const router = Router();
 
@@ -88,7 +89,12 @@ router.get(
   ah(async (req, res) => {
     const student = await getStudentById(req.params.id);
     if (!student) throw notFound('Student not found');
-    res.json(student);
+    // Full admission form data (guardian details, documents, ...) when the student came from an application
+    let application = null;
+    if (student.applicationId) {
+      application = await getApplicationByApplicationId(String(student.applicationId)).catch(() => null);
+    }
+    res.json({ ...student, application });
   })
 );
 
