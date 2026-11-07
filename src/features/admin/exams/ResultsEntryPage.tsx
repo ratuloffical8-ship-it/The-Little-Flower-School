@@ -7,6 +7,7 @@ import PrintOverlay from '@/components/PrintOverlay';
 import MarksheetSheet, { type MarksheetData } from '@/components/MarksheetSheet';
 import { txt } from '@/utils/admissionForm';
 import { classLabel } from '@/utils/classes';
+import { isCoreSubject } from '@/utils/grading';
 
 interface ExamSubject {
   name: string;
@@ -43,6 +44,11 @@ interface ResultListItem {
   gpa: number;
   grade: string;
   passed: boolean;
+  promoted?: boolean;
+  coreFailed?: boolean;
+  failedSubjects?: string[];
+  needsDecision?: boolean;
+  decision?: 'promoted' | 'failed';
 }
 
 interface ResultsResponse {
@@ -79,6 +85,7 @@ export default function ResultsEntryPage() {
 
   const saveApi = useApi<{ success: boolean; saved?: number }>('PUT');
   const studentApi = useApi<Record<string, unknown>>('GET');
+  const decideApi = useApi<{ success: boolean }>('PATCH');
 
   const [selected, setSelected] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
@@ -103,6 +110,18 @@ export default function ResultsEntryPage() {
   }, [studentsRes.data]);
 
   const doneCount = students.filter((s) => results.has(s.studentId)).length;
+  const pendingDecision = students.filter((s) => results.get(s.studentId)?.needsDecision).length;
+
+  async function decide(studentId: string, decision: 'promoted' | 'failed') {
+    if (!examId) return;
+    setError(null);
+    try {
+      await decideApi.execute(`/api/results/exam/${examId}/student/${studentId}/decision`, { decision });
+      resultsRes.execute();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr('সিদ্ধান্ত সংরক্ষণ ব্যর্থ হয়েছে।', 'Could not save the decision.'));
+    }
+  }
   const current = students.find((s) => s.studentId === selected) ?? null;
 
   function openStudent(studentId: string) {
@@ -212,6 +231,7 @@ export default function ResultsEntryPage() {
         gpa: r.gpa,
         grade: r.grade,
         passed: r.passed,
+        promoted: r.promoted,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : tr('মার্কশিট তৈরি করা যায়নি।', 'Could not build the marksheet.'));
@@ -288,6 +308,15 @@ export default function ResultsEntryPage() {
         </div>
       </div>
 
+      {pendingDecision > 0 && (
+        <div className="card border-l-4 border-l-amber-500 bg-amber-50 text-sm text-amber-900">
+          {tr(
+            `${pendingDecision} জন শিক্ষার্থী কিছু বিষয়ে ফেল করেছে। নিচে "বিবেচনায় পাস" বা "ফেল রাখুন" বেছে নিন। সিদ্ধান্ত না দিলে তাকে ফেল দেখানো হবে।`,
+            `${pendingDecision} student(s) failed some subjects. Choose "Pass by consideration" or "Keep fail" below. Until decided, they show as failed.`,
+          )}
+        </div>
+      )}
+
       <div className="card divide-y divide-surface p-0">
         {students.length === 0 && (
           <p className="px-4 py-8 text-center text-sm text-ink/60">
@@ -304,9 +333,55 @@ export default function ResultsEntryPage() {
                 </p>
                 <p className="font-mono text-xs text-ink/50">{s.studentId}</p>
                 {r ? (
-                  <p className="text-xs text-green-700">
-                    {tr('প্রাপ্ত', 'Total')}: {r.total}/{r.fullTotal} · GPA {r.gpa.toFixed(2)} ({r.grade})
-                  </p>
+                  <>
+                    <p className="text-xs text-ink/70">
+                      {tr('প্রাপ্ত', 'Total')}: {r.total}/{r.fullTotal} · GPA {r.gpa.toFixed(2)} ({r.grade})
+                    </p>
+                    {r.coreFailed ? (
+                      <p className="text-xs font-semibold text-red-700">
+                        {tr('অনুত্তীর্ণ — বাংলা/ইংরেজি/গণিতে ফেল: ', 'Failed — core subject failed: ')}
+                        {(r.failedSubjects ?? []).filter(isCoreSubject).join(', ')}
+                      </p>
+                    ) : r.passed && r.promoted ? (
+                      <p className="text-xs font-semibold text-green-700">
+                        {tr('বিবেচনায় উত্তীর্ণ', 'Promoted by consideration')} ({(r.failedSubjects ?? []).join(', ')}{' '}
+                        {tr('ফেল', 'failed')})
+                      </p>
+                    ) : r.passed ? (
+                      <p className="text-xs font-semibold text-green-700">{tr('উত্তীর্ণ', 'Passed')}</p>
+                    ) : (
+                      <p className="text-xs font-semibold text-red-700">
+                        {r.needsDecision
+                          ? tr('সিদ্ধান্ত বাকি — ফেল: ', 'Decision pending — failed: ')
+                          : tr('অনুত্তীর্ণ — ফেল: ', 'Failed — ')}
+                        {(r.failedSubjects ?? []).join(', ')}
+                      </p>
+                    )}
+                    {r.failedSubjects && r.failedSubjects.length > 0 && !r.coreFailed && (
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {!(r.passed && r.promoted) && (
+                          <button
+                            type="button"
+                            disabled={decideApi.isLoading}
+                            onClick={() => void decide(s.studentId, 'promoted')}
+                            className="rounded bg-green-600 px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
+                          >
+                            {tr('বিবেচনায় পাস', 'Pass by consideration')}
+                          </button>
+                        )}
+                        {!(r.decision === 'failed') && (
+                          <button
+                            type="button"
+                            disabled={decideApi.isLoading}
+                            onClick={() => void decide(s.studentId, 'failed')}
+                            className="rounded border border-red-500 px-2 py-1 text-xs font-medium text-red-700 disabled:opacity-50"
+                          >
+                            {tr('ফেল রাখুন', 'Keep fail')}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <p className="text-xs text-amber-700">{tr('নম্বর বাকি', 'Not entered')}</p>
                 )}
@@ -367,7 +442,8 @@ export default function ResultsEntryPage() {
                       {sub.name}
                       <span className="ml-1 text-xs font-normal text-ink/60">
                         ({tr('পূর্ণমান', 'full')} {sub.fullMarks}
-                        {sub.isOptional ? ' · ' + tr('ঐচ্ছিক', 'optional') : ''})
+                        {sub.isOptional ? ' · ' + tr('ঐচ্ছিক', 'optional') : ''}
+                        {isCoreSubject(sub.name) ? ' · ' + tr('পাস বাধ্যতামূলক', 'must pass') : ''})
                       </span>
                     </label>
                     <label className="flex items-center gap-1 text-xs text-ink/70">
@@ -427,4 +503,4 @@ export default function ResultsEntryPage() {
       )}
     </div>
   );
-  }
+    }
