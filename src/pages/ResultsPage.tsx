@@ -51,6 +51,7 @@ interface PublicResult {
   gpa: number;
   grade: string;
   passed: boolean;
+  promoted?: boolean;
 }
 
 const MOBILE_RE = /^(?:\+?88)?01[3-9]\d{8}$/;
@@ -355,7 +356,11 @@ export default function ResultsPage() {
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-ink-light">{t('results.result')}</span>
                 <span className={`font-bold ${result.passed ? 'text-success' : 'text-error'}`}>
-                  {result.passed ? t('results.pass') : t('results.fail')}
+                  {result.passed
+                    ? result.promoted
+                      ? tr('বিবেচনায় উত্তীর্ণ', 'Promoted (by consideration)')
+                      : t('results.pass')
+                    : t('results.fail')}
                 </span>
               </div>
             </div>
@@ -388,10 +393,11 @@ export default function ResultsPage() {
               gpa: result.gpa,
               grade: result.grade,
               passed: result.passed,
+              promoted: result.promoted,
             }}
           />
         </PrintOverlay>
       )}
     </>
   );
-  }
+}
