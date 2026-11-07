@@ -1,6 +1,6 @@
 // src/features/admission/AdmissionForm.tsx
 import { compressImage } from '@/utils/image';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import { getIdToken } from '@/lib/firebase/auth';
@@ -13,6 +13,7 @@ import StepGuardian from './StepGuardian';
 import StepDocuments from './StepDocuments';
 import AdmissionConfirmation from './AdmissionConfirmation';
 import type { AdmissionFormData } from '@/types/admission';
+import type { AdmissionFormData as PrintFormData } from '@/utils/admissionForm';
 
 const STEPS_BN = ['শিক্ষার্থীর তথ্য', 'অভিভাবকের তথ্য', 'নথিপত্র ও পর্যালোচনা'];
 const STEPS_EN = ['Student Info', 'Guardian Info', 'Documents & Review'];
@@ -49,6 +50,7 @@ export default function AdmissionForm() {
   const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState<AdmissionFormData>(initialFormData);
+  const photoUrl = useMemo(() => (formData.photo ? URL.createObjectURL(formData.photo) : ''), [formData.photo]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWaking, setIsWaking] = useState(false);
@@ -225,8 +227,42 @@ export default function AdmissionForm() {
 
   if (isWaking) return <ServerWaking />;
   if (result) {
+    const printForm: PrintFormData = {
+      applicationId: result.applicationId,
+      studentId: '',
+      sessionId: String(new Date().getFullYear()),
+      classId: formData.classApplyingFor,
+      roll: '',
+      submittedAt: new Date().toISOString(),
+      student: {
+        nameBn: formData.studentNameBn,
+        nameEn: formData.studentNameEn,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        religion: formData.religion,
+        nationality: formData.nationality,
+        bloodGroup: formData.bloodGroup,
+        previousSchool: formData.previousSchool,
+        classApplyingFor: formData.classApplyingFor,
+      },
+      guardian: {
+        fatherName: formData.fatherName,
+        motherName: formData.motherName,
+        guardianName: formData.guardianName,
+        relationship: formData.relationship,
+        occupation: formData.occupation,
+        nid: formData.nid,
+        mobile: formData.mobile,
+        email: formData.email,
+        presentAddress: formData.presentAddress,
+        permanentAddress: formData.permanentAddress,
+        monthlyIncome: formData.monthlyIncome,
+      },
+      photo: photoUrl,
+    };
     return (
       <AdmissionConfirmation
+        form={printForm}
         applicationId={result.applicationId}
         studentName={locale === 'bn' ? formData.studentNameBn : formData.studentNameEn}
         className={formData.classApplyingFor}
@@ -333,4 +369,4 @@ export default function AdmissionForm() {
       </div>
     </div>
   );
-  }
+      }
