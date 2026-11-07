@@ -32,6 +32,7 @@ export interface MarksheetData {
   gpa: number;
   grade: string;
   passed: boolean;
+  promoted?: boolean;
 }
 
 function fmtDob(v?: string): string {
@@ -114,7 +115,10 @@ export default function MarksheetSheet({ data }: { data: MarksheetData }) {
 
       <div className="mt-3 flex flex-wrap justify-between gap-2 text-[13px] font-semibold">
         <span>শতকরা: {data.percentage.toFixed(2)}%</span>
-        <span>ফলাফল: {data.passed ? 'উত্তীর্ণ (Pass)' : 'অনুত্তীর্ণ (Fail)'}</span>
+        <span>
+          ফলাফল:{' '}
+          {data.passed ? (data.promoted ? 'বিবেচনায় উত্তীর্ণ (Promoted)' : 'উত্তীর্ণ (Pass)') : 'অনুত্তীর্ণ (Fail)'}
+        </span>
       </div>
 
       <div className="mt-14 flex justify-between text-[12px]">
@@ -124,4 +128,4 @@ export default function MarksheetSheet({ data }: { data: MarksheetData }) {
       </div>
     </div>
   );
-}
+            }
