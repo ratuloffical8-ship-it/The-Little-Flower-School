@@ -42,14 +42,30 @@ export interface ResultEntryInput {
 export interface LookupResultInput {
   examId: string;
   /** Class roll number (unique inside the exam's class) */
-  roll: string | number;
+  roll?: string | number;
+  /** Or the student ID (TLFS-STU-...) */
+  studentId?: string;
   /** Guardian mobile number */
   mobile: string;
 }
 
 export interface PublicResult {
   exam: { id: string; name: string };
-  student: { studentId: string; name: string; classId: string; roll?: string | number };
+  student: {
+    studentId: string;
+    name: string;
+    nameBn: string;
+    nameEn: string;
+    classId: string;
+    sessionId: string;
+    roll?: string | number;
+    fatherName: string;
+    motherName: string;
+    address: string;
+    dateOfBirth: string;
+    gender: string;
+    photo: string;
+  };
   subjects: SubjectResult[];
   total: number;
   fullTotal: number;
@@ -192,26 +208,32 @@ export async function lookupPublishedResult(input: LookupResultInput): Promise<P
   const exam = await getExamById(input.examId);
   if (!exam || !exam.published) throw notFound(GENERIC_MISMATCH);
 
-  const rollNum = Number(String(input.roll).replace(/\D/g, ''));
   const given = normalizeMobile(input.mobile);
-  if (!Number.isFinite(rollNum) || rollNum < 1 || !given) throw notFound(GENERIC_MISMATCH);
+  if (!given) throw notFound(GENERIC_MISMATCH);
+
+  const wantedId = String(input.studentId ?? '').trim().toUpperCase();
+  const rollNum = Number(String(input.roll ?? '').replace(/\D/g, ''));
+  if (!wantedId && !(Number.isFinite(rollNum) && rollNum >= 1)) throw notFound(GENERIC_MISMATCH);
 
   // Equality-only query: no composite index required
   const snap = await db.collection(STUDENTS_COLLECTION).where('classId', '==', exam.classId).get();
   const doc = snap.docs.find((d) => {
     const x = d.data();
-    const sameRoll = Number(x.roll ?? x.rollNumber) === rollNum;
-    const sameSession = !exam.sessionId || !x.sessionId || x.sessionId === exam.sessionId;
+    if (x.isActive === false) return false;
+    const sameWho = wantedId
+      ? String(x.studentId ?? d.id).toUpperCase() === wantedId
+      : Number(x.roll ?? x.rollNumber) === rollNum &&
+        (!exam.sessionId || !x.sessionId || x.sessionId === exam.sessionId);
     return (
-      sameRoll &&
-      sameSession &&
-      x.isActive !== false &&
+      sameWho &&
       normalizeMobile((x.guardian as { mobile?: unknown } | undefined)?.mobile) === given
     );
   });
   if (!doc) throw notFound(GENERIC_MISMATCH);
 
   const student = doc.data();
+  const g = (student.guardian ?? {}) as Record<string, unknown>;
+  const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v));
   const resolvedStudentId = String(student.studentId ?? doc.id);
   const result = await getResult(exam.id, resolvedStudentId);
   if (!result) throw notFound(GENERIC_MISMATCH);
@@ -221,8 +243,17 @@ export async function lookupPublishedResult(input: LookupResultInput): Promise<P
     student: {
       studentId: resolvedStudentId,
       name: String(student.name ?? student.nameBn ?? student.nameEn ?? ''),
+      nameBn: str(student.nameBn ?? student.name),
+      nameEn: str(student.nameEn),
       classId: String(student.classId ?? exam.classId),
+      sessionId: str(student.sessionId ?? exam.sessionId),
       roll: (student.roll ?? student.rollNumber) as string | number | undefined,
+      fatherName: str(g.fatherName),
+      motherName: str(g.motherName),
+      address: str(g.presentAddress ?? g.address),
+      dateOfBirth: str(student.dateOfBirth),
+      gender: str(student.gender),
+      photo: str(student.photo),
     },
     subjects: result.subjects,
     total: result.total,
@@ -232,4 +263,4 @@ export async function lookupPublishedResult(input: LookupResultInput): Promise<P
     grade: result.grade,
     passed: result.passed,
   };
-    }
+                                         }
