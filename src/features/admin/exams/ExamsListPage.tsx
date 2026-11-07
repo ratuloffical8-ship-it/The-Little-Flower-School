@@ -144,6 +144,13 @@ export default function ExamsListPage() {
         </div>
       )}
 
+      <div className="card border-l-4 border-l-royal text-sm text-ink/80">
+        {tr(
+          'ধাপ: ১) নতুন পরীক্ষা তৈরি করুন → ২) "নম্বর" চেপে প্রতিটি শিক্ষার্থীর নম্বর দিন → ৩) "প্রকাশ" চাপুন। প্রকাশ না করলে ওয়েবসাইটে ফলাফল দেখা যাবে না।',
+          'Steps: 1) Create exam → 2) Tap "Marks" and enter marks for each student → 3) Tap "Publish". Results are not visible on the website until published.',
+        )}
+      </div>
+
       <div className="card grid gap-3 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="ex-class">{tr('শ্রেণি', 'Class')}</label>
@@ -356,4 +363,4 @@ export default function ExamsListPage() {
       )}
     </div>
   );
-    }
+                     }
