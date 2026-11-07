@@ -17,7 +17,8 @@ import { badRequest, notFound } from '../utils/errors';
 
 const router = Router();
 const readRoles = requireRole('super_admin', 'school_admin', 'teacher');
-const writeRoles = requireRole('super_admin', 'school_admin');
+const writeRoles = requireRole('super_admin', 'school_admin', 'teacher');
+const deleteRoles = requireRole('super_admin', 'school_admin');
 
 const ah =
   (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler =>
@@ -171,7 +172,7 @@ router.patch(
 router.delete(
   '/:id',
   verifyToken,
-  writeRoles,
+  deleteRoles,
   ah(async (req, res) => {
     await deleteExam(req.params.id);
     await logAudit({
