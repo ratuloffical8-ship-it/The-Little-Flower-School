@@ -1,6 +1,6 @@
 // src/features/admin/students/StudentDetailPage.tsx
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../../../hooks/useLanguage';
 import { useAuth } from '../../../hooks/useAuth';
 import { useApiGet, useApi } from '../../../hooks/useApi';
@@ -67,6 +67,7 @@ function toDate(value: StudentRecord['createdAt']): Date | null {
 
 export default function StudentDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { isBengali } = useLanguage();
   const { role } = useAuth();
   const tr = (bn: string, en: string) => (isBengali ? bn : en);
@@ -98,6 +99,7 @@ export default function StudentDetailPage() {
   }, [classesRes.data]);
 
   const deactivateApi = useApi<{ success: boolean }>('DELETE');
+  const purgeApi = useApi<{ success: boolean }>('DELETE');
 
   const [showEdit, setShowEdit] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -121,6 +123,24 @@ export default function StudentDetailPage() {
           ? e.message
           : tr('নিষ্ক্রিয় করা যায়নি।', 'Could not deactivate.'),
       );
+    }
+  }
+
+  async function handlePurge() {
+    if (!student) return;
+    const ok = window.confirm(
+      tr(
+        'সতর্কতা: এই শিক্ষার্থী, তার সব নম্বর, উপস্থিতি এবং ভর্তি আবেদন স্থায়ীভাবে মুছে যাবে। আর ফেরানো যাবে না। মুছবেন?',
+        'Warning: this permanently deletes the student, all marks, attendance and the admission application. This cannot be undone. Continue?',
+      ),
+    );
+    if (!ok) return;
+    setActionError(null);
+    try {
+      await purgeApi.execute(`/api/students/${student.id}/permanent`);
+      navigate('/admine/students');
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : tr('মুছে ফেলা যায়নি।', 'Could not delete.'));
     }
   }
 
@@ -242,6 +262,14 @@ export default function StudentDetailPage() {
                 className="rounded border border-navy/30 px-4 py-2 text-sm text-navy hover:bg-navy/5"
               >
                 {tr('সম্পাদনা', 'Edit')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handlePurge()}
+                disabled={purgeApi.isLoading}
+                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {tr('স্থায়ীভাবে মুছুন', 'Delete permanently')}
               </button>
               {active && (
                 <button
@@ -475,4 +503,4 @@ function Field({
       <dd className="mt-0.5 text-ink">{value || '—'}</dd>
     </div>
   );
-      }
+                                         }
