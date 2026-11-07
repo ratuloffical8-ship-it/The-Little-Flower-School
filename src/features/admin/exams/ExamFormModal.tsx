@@ -230,74 +230,70 @@ export default function ExamFormModal({ mode, classes, exam, onClose, onSaved }:
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-sm">
-              <thead className="bg-surface text-left text-ink">
-                <tr>
-                  <th className="px-3 py-2 font-semibold">{tr('নাম', 'Name')}</th>
-                  <th className="px-3 py-2 font-semibold">{tr('পূর্ণ', 'Full')}</th>
-                  <th className="px-3 py-2 font-semibold">{tr('পাস', 'Pass')}</th>
-                  <th className="px-3 py-2 font-semibold">{tr('ঐচ্ছিক?', 'Optional?')}</th>
-                  <th className="px-3 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {subjects.map((s, i) => (
-                  <tr key={i} className="border-t border-surface">
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={s.name}
-                        onChange={(e) => updateSubject(i, 'name', e.target.value)}
-                        className="input-field"
-                        maxLength={60}
-                        required
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min={1}
-                        max={1000}
-                        value={s.fullMarks}
-                        onChange={(e) => updateSubject(i, 'fullMarks', e.target.value)}
-                        className="input-field w-24"
-                        required
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        max={1000}
-                        value={s.passMarks}
-                        onChange={(e) => updateSubject(i, 'passMarks', e.target.value)}
-                        className="input-field w-24"
-                        placeholder={tr('ডিফল্ট', 'Default')}
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={s.isOptional}
-                        onChange={(e) => updateSubject(i, 'isOptional', e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <button
-                        type="button"
-                        onClick={() => removeSubject(i)}
-                        disabled={subjects.length <= 1}
-                        className="text-sm text-red-700 hover:underline disabled:opacity-40"
-                      >
-                        {tr('সরান', 'Remove')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {subjects.map((s, i) => (
+              <div key={i} className="rounded border border-surface p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-ink/60">
+                    {tr('বিষয়', 'Subject')} {i + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeSubject(i)}
+                    disabled={subjects.length <= 1}
+                    className="text-sm text-red-700 hover:underline disabled:opacity-40"
+                  >
+                    {tr('সরান', 'Remove')}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={s.name}
+                  onChange={(e) => updateSubject(i, 'name', e.target.value)}
+                  className="input-field mt-2 w-full"
+                  maxLength={60}
+                  placeholder={tr('বিষয়ের নাম (যেমন: বাংলা)', 'Subject name (e.g. Bangla)')}
+                  required
+                />
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-ink/60">{tr('পূর্ণ নম্বর', 'Full marks')}</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={1000}
+                      value={s.fullMarks}
+                      onChange={(e) => updateSubject(i, 'fullMarks', e.target.value)}
+                      className="input-field w-full"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-ink/60">{tr('পাস নম্বর', 'Pass marks')}</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={1000}
+                      value={s.passMarks}
+                      onChange={(e) => updateSubject(i, 'passMarks', e.target.value)}
+                      className="input-field w-full"
+                      placeholder={tr('ডিফল্ট', 'Default')}
+                    />
+                  </div>
+                </div>
+                <label className="mt-2 flex items-center gap-2 text-sm text-ink/80">
+                  <input
+                    type="checkbox"
+                    checked={s.isOptional}
+                    onChange={(e) => updateSubject(i, 'isOptional', e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  {tr('ঐচ্ছিক বিষয়', 'Optional subject')}
+                </label>
+              </div>
+            ))}
           </div>
           <p className="text-xs text-ink/60">
             {tr(
@@ -329,4 +325,4 @@ export default function ExamFormModal({ mode, classes, exam, onClose, onSaved }:
       </form>
     </div>
   );
-            }
+}
