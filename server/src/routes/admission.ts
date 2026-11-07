@@ -412,4 +412,36 @@ router.post(
   }
 );
 
+/**
+ * DELETE /api/admission/:id
+ * Permanently removes an application (test data / spam). A student already created
+ * from it is NOT touched — delete the student separately.
+ */
+router.delete(
+  '/:id',
+  verifyToken,
+  requireRole('super_admin', 'school_admin'),
+  async (req, res, next) => {
+    try {
+      const ref = db.collection('admissionApplications').doc(req.params.id);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        res.status(404).json({ error: 'Application not found' });
+        return;
+      }
+      await ref.delete();
+      await logAudit({
+        actorUid: req.user!.uid,
+        actorEmail: req.user!.email ?? '',
+        action: 'admission.delete',
+        targetCollection: 'admissionApplications',
+        targetId: req.params.id,
+      });
+      res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 export default router;
