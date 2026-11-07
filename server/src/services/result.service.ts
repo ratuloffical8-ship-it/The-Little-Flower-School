@@ -1,7 +1,7 @@
 // server/src/services/result.service.ts
 import { db, FieldValue } from '../config/firebase';
 import { badRequest, notFound } from '../utils/errors';
-import { computeResult, type SubjectResult } from '../utils/grading';
+import { computeResult, evaluateResult, type SubjectResult } from '../utils/grading';
 import { getExamById } from './exam.service';
 import { getStudentById, findStudentByStudentId } from './student.service';
 
@@ -24,6 +24,13 @@ export interface ResultRecord {
   gpa: number;
   grade: string;
   passed: boolean;
+  /** teacher / admin decision for non-core failures */
+  decision?: 'promoted' | 'failed';
+  decisionNote?: string;
+  promoted?: boolean;
+  coreFailed?: boolean;
+  failedSubjects?: string[];
+  needsDecision?: boolean;
   enteredBy: string;
   updatedAt?: unknown;
 }
@@ -73,6 +80,21 @@ export interface PublicResult {
   gpa: number;
   grade: string;
   passed: boolean;
+  promoted: boolean;
+}
+
+/** Re-applies the pass rules to a stored result (also fixes results saved with the old rule). */
+function withEval<T extends { subjects: SubjectResult[]; decision?: string }>(r: T): T & {
+  passed: boolean;
+  gpa: number;
+  grade: string;
+  promoted: boolean;
+  coreFailed: boolean;
+  failedSubjects: string[];
+  needsDecision: boolean;
+} {
+  const ev = evaluateResult(r.subjects, r.decision);
+  return { ...r, ...ev };
 }
 
 export const resultDocId = (examId: string, studentId: string): string =>
@@ -99,6 +121,7 @@ export async function saveResults(
   }
 
   const students = await Promise.all(entries.map((e) => getStudentById(e.studentId)));
+  const existing = await Promise.all(entries.map((e) => getResult(examId, e.studentId)));
   const subjectNames = new Set(exam.subjects.map((s) => s.name));
 
   const docs = entries.map((entry, i) => {
@@ -132,7 +155,22 @@ export async function saveResults(
       };
     });
 
-    return { studentId: entry.studentId, computed: computeResult(inputs) };
+    const computed = computeResult(inputs);
+    const decision = existing[i]?.decision;
+    const ev = evaluateResult(computed.subjects, decision);
+    return {
+      studentId: entry.studentId,
+      computed: {
+        ...computed,
+        passed: ev.passed,
+        gpa: ev.gpa,
+        grade: ev.grade,
+        promoted: ev.promoted,
+        coreFailed: ev.coreFailed,
+        failedSubjects: ev.failedSubjects,
+        needsDecision: ev.needsDecision,
+      },
+    };
   });
 
   for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
@@ -181,7 +219,7 @@ export async function listExamResults(examId: string): Promise<ResultListItem[]>
     .map((d) => {
       const data = d.data() as Omit<ResultRecord, 'id'>;
       const info = roster.get(data.studentId);
-      return { id: d.id, ...data, studentName: info?.name, roll: info?.roll };
+      return { id: d.id, ...withEval(data), studentName: info?.name, roll: info?.roll };
     })
     .sort((a, b) => a.studentId.localeCompare(b.studentId));
 }
@@ -189,7 +227,38 @@ export async function listExamResults(examId: string): Promise<ResultListItem[]>
 export async function getResult(examId: string, studentId: string): Promise<ResultRecord | null> {
   const doc = await db.collection(RESULTS_COLLECTION).doc(resultDocId(examId, studentId)).get();
   if (!doc.exists) return null;
-  return { id: doc.id, ...(doc.data() as Omit<ResultRecord, 'id'>) };
+  return { id: doc.id, ...withEval(doc.data() as Omit<ResultRecord, 'id'>) };
+}
+
+/** Teacher / admin decision for a student who failed only non-core subjects. */
+export async function setResultDecision(
+  examId: string,
+  studentId: string,
+  decision: 'promoted' | 'failed',
+  note: string,
+  actorUid: string,
+): Promise<ResultRecord> {
+  const result = await getResult(examId, studentId);
+  if (!result) throw notFound('Result not found');
+  if (result.coreFailed) {
+    throw badRequest('বাংলা, ইংরেজি ও গণিতে পাস না করলে বিবেচনায় পাস দেওয়া যায় না।');
+  }
+  const ev = evaluateResult(result.subjects, decision);
+  await db
+    .collection(RESULTS_COLLECTION)
+    .doc(resultDocId(examId, studentId))
+    .update({
+      decision,
+      decisionNote: note,
+      decisionBy: actorUid,
+      passed: ev.passed,
+      promoted: ev.promoted,
+      needsDecision: ev.needsDecision,
+      gpa: ev.gpa,
+      grade: ev.grade,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  return (await getResult(examId, studentId)) as ResultRecord;
 }
 
 export async function deleteResult(examId: string, studentId: string): Promise<void> {
@@ -262,5 +331,6 @@ export async function lookupPublishedResult(input: LookupResultInput): Promise<P
     gpa: result.gpa,
     grade: result.grade,
     passed: result.passed,
+    promoted: !!result.promoted,
   };
-                                         }
+  }
