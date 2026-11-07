@@ -1,14 +1,14 @@
 // src/pages/ResultsPage.tsx
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Search, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Loader2, Printer } from 'lucide-react';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useApi } from '@/hooks/useApi';
 import SEOHead from '@/components/SEOHead';
 import ServerWaking from '@/components/ServerWaking';
+import PrintOverlay from '@/components/PrintOverlay';
+import MarksheetSheet from '@/components/MarksheetSheet';
 import { formatGPA, formatPercentage } from '@/utils/format';
+import { CLASS_ORDER, classLabel } from '@/utils/classes';
 
 /* ── Types (match GET /api/results/exams/published and POST /api/results/lookup) ── */
 
@@ -25,11 +25,25 @@ interface SubjectRow {
   grade: string;
   gradePoint: number;
   passed: boolean;
+  isOptional?: boolean;
 }
 
 interface PublicResult {
   exam: { id: string; name: string };
-  student: { studentId: string; name: string; classId: string; roll?: string | number };
+  student: {
+    studentId: string;
+    name: string;
+    nameBn?: string;
+    nameEn?: string;
+    classId: string;
+    sessionId?: string;
+    roll?: string | number;
+    fatherName?: string;
+    motherName?: string;
+    address?: string;
+    dateOfBirth?: string;
+    photo?: string;
+  };
   subjects: SubjectRow[];
   total: number;
   fullTotal: number;
@@ -39,33 +53,24 @@ interface PublicResult {
   passed: boolean;
 }
 
-/* ── Form: exam + roll + guardian mobile ── */
-
-const lookupSchema = z.object({
-  examId: z.string().min(1, 'পরীক্ষা নির্বাচন করুন / Select an exam'),
-  roll: z.string().trim().regex(/^\d{1,4}$/, 'সঠিক রোল নম্বর দিন / Enter a valid roll number'),
-  mobile: z
-    .string()
-    .trim()
-    .regex(/^(?:\+?88)?01[3-9]\d{8}$/, 'সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX) / Enter a valid mobile number'),
-});
-
-type FormData = z.infer<typeof lookupSchema>;
+const MOBILE_RE = /^(?:\+?88)?01[3-9]\d{8}$/;
 
 export default function ResultsPage() {
   const { t, isBengali, locale } = useLanguage();
+  const tr = (bn: string, en: string) => (isBengali ? bn : en);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({
-    resolver: zodResolver(lookupSchema),
-    defaultValues: { examId: '', roll: '', mobile: '' },
-  });
+  // Form state: class → exam → (roll | student id) + guardian mobile
+  const [classId, setClassId] = useState('');
+  const [examId, setExamId] = useState('');
+  const [by, setBy] = useState<'roll' | 'studentId'>('roll');
+  const [roll, setRoll] = useState('');
+  const [studentId, setStudentId] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Published exams for the dropdown (API returns { items: [...] })
+  // Published exams for the dropdowns (API returns { items: [...] })
   const {
     data: examsRaw,
     execute: fetchExams,
@@ -82,16 +87,40 @@ export default function ResultsPage() {
     fetchExams();
   }, [fetchExams]);
 
+  const classOptions = useMemo(() => {
+    const ids = new Set((exams ?? []).map((e) => e.classId).filter((x): x is string => !!x));
+    return [...ids].sort((a, b) => {
+      const ia = CLASS_ORDER.indexOf(a);
+      const ib = CLASS_ORDER.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+  }, [exams]);
+
+  const examsOfClass = useMemo(
+    () => (exams ?? []).filter((e) => !classId || e.classId === classId),
+    [exams, classId],
+  );
+
   const { data: result, isLoading, isWaking, error, execute } =
     useApi<PublicResult>('post', '/api/results/lookup');
 
-  const onSubmit = async (formData: FormData) => {
-    setHasSearched(true);
-    await execute(formData);
-  };
+  const submit = async () => {
+    setFormError(null);
+    if (!classId) return setFormError(tr('শ্রেণি নির্বাচন করুন।', 'Select a class.'));
+    if (!examId) return setFormError(tr('পরীক্ষা নির্বাচন করুন।', 'Select an exam.'));
+    if (by === 'roll' && !/^\d{1,4}$/.test(roll.trim()))
+      return setFormError(tr('সঠিক রোল নম্বর দিন।', 'Enter a valid roll number.'));
+    if (by === 'studentId' && studentId.trim().length < 5)
+      return setFormError(tr('শিক্ষার্থী আইডি দিন।', 'Enter the student ID.'));
+    if (!MOBILE_RE.test(mobile.trim()))
+      return setFormError(tr('সঠিক মোবাইল নম্বর দিন (01XXXXXXXXX)।', 'Enter a valid mobile number.'));
 
-  const handleRetry = () => {
-    handleSubmit(onSubmit)();
+    setHasSearched(true);
+    await execute({
+      examId,
+      mobile: mobile.trim(),
+      ...(by === 'roll' ? { roll: roll.trim() } : { studentId: studentId.trim().toUpperCase() }),
+    });
   };
 
   return (
@@ -100,8 +129,8 @@ export default function ResultsPage() {
         title={isBengali ? 'ফলাফল' : 'Results'}
         description={
           isBengali
-            ? 'আপনার পরীক্ষার ফলাফল দেখুন — রোল নম্বর ও অভিভাবকের মোবাইল নম্বর দিন।'
-            : 'Check your exam results — enter roll number and guardian mobile number.'
+            ? 'আপনার পরীক্ষার ফলাফল দেখুন — শ্রেণি, পরীক্ষা, রোল বা শিক্ষার্থী আইডি ও অভিভাবকের মোবাইল নম্বর দিন।'
+            : 'Check your exam results — class, exam, roll or student ID and guardian mobile number.'
         }
         canonical="/results"
       />
@@ -115,8 +144,8 @@ export default function ResultsPage() {
           <div className="mx-auto mt-2 h-1 w-12 rounded-full bg-gold" />
           <p className="mt-3 text-sm text-white/70">
             {isBengali
-              ? 'পরীক্ষা নির্বাচন করে রোল নম্বর ও অভিভাবকের মোবাইল নম্বর দিন'
-              : 'Select the exam, then enter roll number and guardian mobile number'}
+              ? 'শ্রেণি ও পরীক্ষা নির্বাচন করে রোল বা শিক্ষার্থী আইডি এবং অভিভাবকের মোবাইল নম্বর দিন'
+              : 'Select class and exam, then enter roll or student ID and guardian mobile number'}
           </p>
         </div>
       </section>
@@ -124,39 +153,95 @@ export default function ResultsPage() {
       {/* Form + Result */}
       <section className="container-page py-8 md:py-12">
         <div className="mx-auto max-w-lg">
-          <form onSubmit={handleSubmit(onSubmit)} className="card space-y-5">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+            className="card space-y-5"
+          >
+            {/* Class */}
+            <div>
+              <label className="label">
+                {tr('শ্রেণি', 'Class')} <span className="text-error">*</span>
+              </label>
+              <select
+                value={classId}
+                onChange={(e) => {
+                  setClassId(e.target.value);
+                  setExamId('');
+                }}
+                className="input-field"
+                disabled={examsLoading}
+              >
+                <option value="">{tr('শ্রেণি নির্বাচন করুন', 'Select class')}</option>
+                {classOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {classLabel(c, isBengali)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Exam */}
             <div>
               <label className="label">
                 {t('results.exam')} <span className="text-error">*</span>
               </label>
-              <select {...register('examId')} className="input-field" disabled={examsLoading}>
+              <select
+                value={examId}
+                onChange={(e) => setExamId(e.target.value)}
+                className="input-field"
+                disabled={examsLoading || !classId}
+              >
                 <option value="">{t('results.selectExam')}</option>
-                {exams?.map((exam) => (
+                {examsOfClass.map((exam) => (
                   <option key={exam.id} value={exam.id}>
                     {exam.name}
                   </option>
                 ))}
               </select>
-              {errors.examId && <p className="error-text">{errors.examId.message}</p>}
               {!examsLoading && exams && exams.length === 0 && (
                 <p className="mt-1 text-xs text-ink-light">{t('results.noPublished')}</p>
               )}
             </div>
 
-            {/* Roll */}
+            {/* Roll or Student ID */}
             <div>
-              <label className="label">
-                {isBengali ? 'রোল নম্বর' : 'Roll Number'} <span className="text-error">*</span>
-              </label>
-              <input
-                {...register('roll')}
-                type="text"
-                inputMode="numeric"
-                className="input-field"
-                placeholder="1"
-              />
-              {errors.roll && <p className="error-text">{errors.roll.message}</p>}
+              <div className="mb-2 flex gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setBy('roll')}
+                  className={`rounded-full border px-3 py-1 ${by === 'roll' ? 'border-navy bg-navy text-white' : 'border-border'}`}
+                >
+                  {tr('রোল নম্বর', 'Roll number')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBy('studentId')}
+                  className={`rounded-full border px-3 py-1 ${by === 'studentId' ? 'border-navy bg-navy text-white' : 'border-border'}`}
+                >
+                  {tr('শিক্ষার্থী আইডি', 'Student ID')}
+                </button>
+              </div>
+              {by === 'roll' ? (
+                <input
+                  value={roll}
+                  onChange={(e) => setRoll(e.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  className="input-field"
+                  placeholder="1"
+                />
+              ) : (
+                <input
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  type="text"
+                  className="input-field"
+                  placeholder="TLFS-STU-2026-0001"
+                />
+              )}
             </div>
 
             {/* Mobile */}
@@ -166,25 +251,23 @@ export default function ResultsPage() {
                 <span className="text-error">*</span>
               </label>
               <input
-                {...register('mobile')}
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
                 type="tel"
                 className="input-field"
                 placeholder="01XXXXXXXXX"
               />
-              {errors.mobile && <p className="error-text">{errors.mobile.message}</p>}
             </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting || isLoading}
-              className="btn-primary w-full"
-            >
+            {formError && <p className="error-text">{formError}</p>}
+
+            <button type="submit" disabled={isLoading} className="btn-primary w-full">
               {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
               {t('results.lookup')}
             </button>
           </form>
 
-          {isWaking && <ServerWaking onRetry={handleRetry} />}
+          {isWaking && <ServerWaking onRetry={() => void submit()} />}
 
           {hasSearched && error && !isWaking && (
             <div className="mt-6 rounded-xl border border-error/20 bg-error/5 p-6 text-center">
@@ -260,6 +343,15 @@ export default function ResultsPage() {
                 </span>
               </div>
 
+              <button
+                type="button"
+                onClick={() => setShowSheet(true)}
+                className="btn-primary mt-4 w-full"
+              >
+                <Printer size={16} />
+                {tr('মার্কশিট ডাউনলোড / প্রিন্ট (PDF)', 'Download / print marksheet (PDF)')}
+              </button>
+
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span className="text-ink-light">{t('results.result')}</span>
                 <span className={`font-bold ${result.passed ? 'text-success' : 'text-error'}`}>
@@ -270,6 +362,36 @@ export default function ResultsPage() {
           )}
         </div>
       </section>
+
+      {showSheet && result && Array.isArray(result.subjects) && (
+        <PrintOverlay onClose={() => setShowSheet(false)}>
+          <MarksheetSheet
+            data={{
+              examName: result.exam.name,
+              student: {
+                studentId: result.student.studentId,
+                nameBn: result.student.nameBn || result.student.name,
+                nameEn: result.student.nameEn,
+                classId: result.student.classId,
+                sessionId: result.student.sessionId,
+                roll: result.student.roll,
+                fatherName: result.student.fatherName,
+                motherName: result.student.motherName,
+                address: result.student.address,
+                dateOfBirth: result.student.dateOfBirth,
+                photo: result.student.photo,
+              },
+              subjects: result.subjects,
+              total: result.total,
+              fullTotal: result.fullTotal,
+              percentage: result.percentage,
+              gpa: result.gpa,
+              grade: result.grade,
+              passed: result.passed,
+            }}
+          />
+        </PrintOverlay>
+      )}
     </>
   );
-    }
+  }
