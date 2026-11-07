@@ -153,3 +153,39 @@ export async function deactivateStudent(id: string): Promise<void> {
   if (!doc.exists) throw notFound('Student not found');
   await ref.update({ isActive: false, updatedAt: FieldValue.serverTimestamp() });
                              }
+
+/**
+ * Permanent delete (for test / wrong entries): removes the student, its results,
+ * attendance records and its admission application. Payments / invoices are kept.
+ */
+export async function deleteStudentPermanently(
+  id: string
+): Promise<{ results: number; attendance: number; applications: number }> {
+  const ref = db.collection(COL).doc(id);
+  const doc = await ref.get();
+  if (!doc.exists) throw notFound('Student not found');
+  const data = doc.data() ?? {};
+  const studentId = String(data.studentId ?? id);
+
+  const refs: FirebaseFirestore.DocumentReference[] = [ref];
+  const results = await db.collection('results').where('studentId', '==', studentId).get();
+  results.docs.forEach((d) => refs.push(d.ref));
+  const attendance = await db.collection('attendance').where('studentId', '==', studentId).get();
+  attendance.docs.forEach((d) => refs.push(d.ref));
+  let applications = 0;
+  if (data.applicationId) {
+    const apps = await db
+      .collection('admissionApplications')
+      .where('applicationId', '==', String(data.applicationId))
+      .get();
+    apps.docs.forEach((d) => refs.push(d.ref));
+    applications = apps.size;
+  }
+
+  for (let i = 0; i < refs.length; i += 400) {
+    const batch = db.batch();
+    refs.slice(i, i + 400).forEach((r) => batch.delete(r));
+    await batch.commit();
+  }
+  return { results: results.size, attendance: attendance.size, applications };
+    }
