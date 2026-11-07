@@ -52,7 +52,7 @@ const lookupSchema = z
 
 const decisionSchema = z.object({
   decision: z.enum(['promoted', 'failed']),
-  note: z.string().trim().max(300).optional().default(''),
+  note: z.string().trim().max(300).optional(),
 });
 
 const saveSchema = z.object({
@@ -141,7 +141,7 @@ router.patch(
       req.params.examId,
       req.params.studentId,
       decision,
-      note,
+      note ?? '',
       req.user!.uid,
     );
     await logAudit({
