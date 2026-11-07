@@ -120,43 +120,165 @@ export async function createApplication(
 // ────────────────────────────────────────────────────────────────────
 // Public status lookup (multi-factor)
 // ────────────────────────────────────────────────────────────────────
+/** Strips non-digits and a leading 88 country prefix. */
+function normMobile(v: unknown): string {
+  const d = String(v ?? '').replace(/\D/g, '');
+  return d.startsWith('88') && d.length === 13 ? d.slice(2) : d;
+}
+
+const isoOf = (v: unknown): string => {
+  const t = v as { toDate?: () => Date } | undefined;
+  return typeof t?.toDate === 'function' ? t.toDate().toISOString() : new Date().toISOString();
+};
+
+export interface PublicAdmissionForm {
+  applicationId: string;
+  studentId: string;
+  sessionId: string;
+  classId: string;
+  roll: string | number | '';
+  submittedAt: string;
+  student: {
+    nameBn: string;
+    nameEn: string;
+    dateOfBirth: string;
+    gender: string;
+    religion: string;
+    nationality: string;
+    bloodGroup: string;
+    previousSchool: string;
+    classApplyingFor: string;
+  };
+  guardian: {
+    fatherName: string;
+    motherName: string;
+    guardianName: string;
+    relationship: string;
+    occupation: string;
+    nid: string;
+    mobile: string;
+    email: string;
+    presentAddress: string;
+    permanentAddress: string;
+    monthlyIncome: string;
+  };
+  photo: string;
+}
+
 /**
- * Verifies applicationId + guardianMobile together.
- * Returns null (NOT an error) if no match — handler must respond with
+ * Verifies (applicationId OR studentId) + guardianMobile together.
+ * Returns null (NOT an error) on any mismatch — handler must respond with a
  * generic error to prevent enumeration.
  */
 export async function lookupStatus(
-  applicationId: string,
+  identifier: string,
   guardianMobile: string
 ): Promise<{
+  applicationId: string;
+  studentId: string;
   status: AdmissionStatus;
+  statusChangedAt: string;
   correctionNote: string;
   studentNameBn: string;
   studentNameEn: string;
   classApplyingFor: string;
   submittedAt: Date;
+  form: PublicAdmissionForm;
 } | null> {
-  const snap = await db
+  const id = identifier.trim().toUpperCase();
+  let app: FirebaseFirestore.DocumentData | null = null;
+  let stu: FirebaseFirestore.DocumentData | null = null;
+
+  if (id.includes('-STU-')) {
+    const direct = await db.collection('students').doc(id).get();
+    if (direct.exists) stu = direct.data() ?? null;
+    else {
+      const q = await db.collection('students').where('studentId', '==', id).limit(1).get();
+      stu = q.empty ? null : q.docs[0].data();
+    }
+    if (!stu) return null;
+    if (stu.applicationId) {
+      const q = await db
+        .collection(COLLECTION)
+        .where('applicationId', '==', String(stu.applicationId))
+        .limit(1)
+        .get();
+      app = q.empty ? null : q.docs[0].data();
+    }
+  } else {
+    const q = await db.collection(COLLECTION).where('applicationId', '==', id).limit(1).get();
+    if (q.empty) return null;
+    app = q.docs[0].data();
+    const sq = await db.collection('students').where('applicationId', '==', id).limit(1).get();
+    stu = sq.empty ? null : sq.docs[0].data();
+  }
+
+  const mobile = app?.guardian?.mobile ?? stu?.guardian?.mobile;
+  if (!normMobile(mobile) || normMobile(mobile) !== normMobile(guardianMobile)) return null;
+
+  const as = (app?.student ?? {}) as Record<string, any>;
+  const ag = (app?.guardian ?? {}) as Record<string, any>;
+  const sg = (stu?.guardian ?? {}) as Record<string, any>;
+  const str = (v: unknown): string => (v === undefined || v === null ? '' : String(v));
+
+  const form: PublicAdmissionForm = {
+    applicationId: str(app?.applicationId ?? stu?.applicationId),
+    studentId: str(stu?.studentId),
+    sessionId: str(stu?.sessionId ?? app?.sessionId),
+    classId: str(stu?.classId ?? as.classApplyingFor),
+    roll: stu?.roll ?? '',
+    submittedAt: isoOf(app?.createdAt ?? stu?.createdAt),
+    student: {
+      nameBn: str(as.nameBn ?? stu?.nameBn ?? stu?.name),
+      nameEn: str(as.nameEn ?? stu?.nameEn),
+      dateOfBirth: str(as.dateOfBirth ?? stu?.dateOfBirth),
+      gender: str(as.gender ?? stu?.gender),
+      religion: str(as.religion ?? stu?.religion),
+      nationality: str(as.nationality),
+      bloodGroup: str(as.bloodGroup ?? stu?.bloodGroup),
+      previousSchool: str(as.previousSchool),
+      classApplyingFor: str(as.classApplyingFor ?? stu?.classId),
+    },
+    guardian: {
+      fatherName: str(ag.fatherName ?? sg.fatherName),
+      motherName: str(ag.motherName ?? sg.motherName),
+      guardianName: str(ag.guardianName ?? sg.guardianName ?? sg.name),
+      relationship: str(ag.relationship),
+      occupation: str(ag.occupation),
+      nid: str(ag.nid ?? sg.nid),
+      mobile: str(ag.mobile ?? sg.mobile),
+      email: str(ag.email ?? sg.email),
+      presentAddress: str(ag.presentAddress ?? sg.presentAddress ?? sg.address),
+      permanentAddress: str(ag.permanentAddress ?? sg.permanentAddress),
+      monthlyIncome: str(ag.monthlyIncome),
+    },
+    photo: str(app?.documents?.photo ?? stu?.photo),
+  };
+
+  return {
+    applicationId: form.applicationId,
+    studentId: form.studentId,
+    status: (app?.status ?? 'approved') as AdmissionStatus,
+    statusChangedAt: isoOf(app?.updatedAt ?? stu?.updatedAt),
+    correctionNote: app?.correctionNote ?? '',
+    studentNameBn: form.student.nameBn,
+    studentNameEn: form.student.nameEn,
+    classApplyingFor: form.student.classApplyingFor,
+    submittedAt: (app?.createdAt as any)?.toDate?.() ?? new Date(),
+    form,
+  };
+}
+
+/** Admin: the application behind a student (matched by its applicationId). */
+export async function getApplicationByApplicationId(
+  applicationId: string
+): Promise<ApplicationRecord | null> {
+  const q = await db
     .collection(COLLECTION)
     .where('applicationId', '==', applicationId)
     .limit(1)
     .get();
-
-  if (snap.empty) return null;
-
-  const doc = snap.docs[0];
-  const data = doc.data();
-
-  if (data.guardian?.mobile !== guardianMobile) return null;
-
-  return {
-    status: data.status,
-    correctionNote: data.correctionNote ?? '',
-    studentNameBn: data.student?.nameBn ?? '',
-    studentNameEn: data.student?.nameEn ?? '',
-    classApplyingFor: data.student?.classApplyingFor ?? '',
-    submittedAt: (data.createdAt as any)?.toDate?.() ?? new Date(),
-  };
+  return q.empty ? null : getApplicationById(q.docs[0].id);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -306,4 +428,4 @@ export async function updateStatus(
     }),
     updatedAt: FieldValue.serverTimestamp(),
   });
-      }
+}
