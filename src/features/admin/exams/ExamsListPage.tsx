@@ -55,7 +55,8 @@ export default function ExamsListPage() {
   const { role } = useAuth();
   const tr = (bn: string, en: string) => (isBengali ? bn : en);
 
-  const canWrite = role === 'super_admin' || role === 'school_admin';
+  const canWrite = role === 'super_admin' || role === 'school_admin' || role === 'teacher';
+  const canDelete = role === 'super_admin' || role === 'school_admin';
 
   const [params, setParams] = useSearchParams();
   const classId = params.get('classId') ?? '';
@@ -271,6 +272,7 @@ export default function ExamsListPage() {
                           >
                             {ex.published ? tr('অপ্রকাশ', 'Unpublish') : tr('প্রকাশ', 'Publish')}
                           </button>
+                          {canDelete && (
                           <button
                             type="button"
                             onClick={() => setConfirmDelete(ex)}
@@ -278,6 +280,7 @@ export default function ExamsListPage() {
                           >
                             {tr('মুছুন', 'Delete')}
                           </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -363,4 +366,4 @@ export default function ExamsListPage() {
       )}
     </div>
   );
-                     }
+      }
