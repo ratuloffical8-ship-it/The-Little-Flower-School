@@ -154,3 +154,72 @@ export function computeResult(
     passed,
   };
     }
+
+
+// ───────── Pass / fail rules for the school ─────────
+// Bangla, English and Maths are COMPULSORY to pass: no override is possible.
+// Failing any other (non-optional) subject => a teacher / admin decides:
+// "promoted" (বিবেচনায় পাস) or "failed".
+
+const CORE_PATTERNS: readonly RegExp[] = [
+  /^(বাংলা(?!দেশ)|bangla|bengali)/i,
+  /^(ইংরেজি|ইংলিশ|english)/i,
+  /^(গণিত|গনিত|অঙ্ক|অংক|math)/i,
+];
+
+export const isCoreSubject = (name: string): boolean => {
+  const n = String(name ?? '').trim();
+  return CORE_PATTERNS.some((re) => re.test(n));
+};
+
+export type PassDecision = 'promoted' | 'failed';
+
+export interface Evaluation {
+  passed: boolean;
+  /** passed only because a teacher / admin promoted the student */
+  promoted: boolean;
+  /** a Bangla / English / Maths subject failed — cannot be overridden */
+  coreFailed: boolean;
+  failedSubjects: string[];
+  /** failed only non-core subjects and nobody has decided yet */
+  needsDecision: boolean;
+  gpa: number;
+  grade: string;
+}
+
+export function evaluateResult(
+  subjects: readonly SubjectResult[],
+  decision?: string | null,
+  scale: readonly GradeBand[] = DEFAULT_GRADE_SCALE,
+): Evaluation {
+  const rows = subjects.map((r) => ({ r, core: isCoreSubject(r.name) }));
+  const counted = rows.filter((x) => x.core || !x.r.isOptional);
+
+  const coreFailed = rows.some((x) => x.core && !x.r.passed);
+  const failedSubjects = counted.filter((x) => !x.r.passed).map((x) => x.r.name);
+  const otherFailed = counted.some((x) => !x.core && !x.r.passed);
+
+  const promoted = !coreFailed && otherFailed && decision === 'promoted';
+  const passed = !coreFailed && (!otherFailed || promoted);
+  const needsDecision = !coreFailed && otherFailed && decision !== 'promoted' && decision !== 'failed';
+
+  let gpa = 0;
+  if (passed && counted.length > 0) {
+    const maxGpa = Math.max(...scale.map((b) => b.point));
+    const base = counted.reduce((sum, x) => sum + x.r.gradePoint, 0);
+    const bonus = rows
+      .filter((x) => !x.core && x.r.isOptional && x.r.passed)
+      .reduce((sum, x) => sum + Math.max(0, x.r.gradePoint - OPTIONAL_BASE_POINT), 0);
+    gpa = round2(Math.min(maxGpa, (base + bonus) / counted.length));
+  }
+
+  return {
+    passed,
+    promoted,
+    coreFailed,
+    failedSubjects,
+    needsDecision,
+    gpa,
+    grade: gradeForGpa(gpa, scale).grade,
+  };
+   }
