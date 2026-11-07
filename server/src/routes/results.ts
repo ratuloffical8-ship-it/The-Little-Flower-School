@@ -10,6 +10,7 @@ import {
   listExamResults,
   getResult,
   deleteResult,
+  setResultDecision,
   lookupPublishedResult,
 } from '../services/result.service';
 import { badRequest, notFound } from '../utils/errors';
@@ -48,6 +49,11 @@ const lookupSchema = z
     mobile: z.string().trim().min(10).max(20),
   })
   .refine((v) => !!v.roll || !!v.studentId, { message: 'Roll or student ID is required' });
+
+const decisionSchema = z.object({
+  decision: z.enum(['promoted', 'failed']),
+  note: z.string().trim().max(300).optional().default(''),
+});
 
 const saveSchema = z.object({
   entries: z
@@ -122,6 +128,29 @@ router.get(
     const item = await getResult(req.params.examId, req.params.studentId);
     if (!item) throw notFound('Result not found');
     res.json({ item });
+  }),
+);
+
+// PATCH /api/results/exam/:examId/student/:studentId/decision  body { decision: 'promoted'|'failed', note? }
+router.patch(
+  '/exam/:examId/student/:studentId/decision',
+  ...entryRoles,
+  ah(async (req, res) => {
+    const { decision, note } = parse(decisionSchema, req.body);
+    const item = await setResultDecision(
+      req.params.examId,
+      req.params.studentId,
+      decision,
+      note,
+      req.user!.uid,
+    );
+    await logAudit({
+      actorUid: req.user!.uid,
+      action: `result.${decision}`,
+      targetCollection: 'results',
+      targetId: `${req.params.examId}_${req.params.studentId}`,
+    });
+    res.json({ success: true, item });
   }),
 );
 
