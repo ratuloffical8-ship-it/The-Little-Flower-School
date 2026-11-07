@@ -146,6 +146,8 @@ export default function AdmissionDetailPage() {
   }, [data]);
 
   const statusApi = useApi<{ success: boolean }>('PATCH');
+  const deleteApi = useApi<{ success: boolean }>('DELETE');
+  const canDelete = role === 'super_admin' || role === 'school_admin';
 
   const [note, setNote] = useState('');
   const [showApprove, setShowApprove] = useState(false);
@@ -155,6 +157,24 @@ export default function AdmissionDetailPage() {
   const refresh = useCallback(() => {
     execute();
   }, [execute]);
+
+  async function handleDelete() {
+    if (!app) return;
+    const ok = window.confirm(
+      tr(
+        'এই ভর্তি আবেদনটি স্থায়ীভাবে মুছে যাবে। আর ফেরানো যাবে না। মুছবেন?',
+        'This application will be permanently deleted. This cannot be undone. Continue?',
+      ),
+    );
+    if (!ok) return;
+    setActionError(null);
+    try {
+      await deleteApi.execute(`/api/admission/${app.id}`);
+      navigate('/admine/admissions');
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : tr('মুছে ফেলা যায়নি।', 'Could not delete.'));
+    }
+  }
 
   async function changeStatus(next: ApplicationStatus, needsNote: boolean) {
     if (!app) return;
@@ -285,6 +305,16 @@ export default function AdmissionDetailPage() {
           >
             {tr('ভর্তি ফরম প্রিন্ট / PDF', 'Admission form / PDF')}
           </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => void handleDelete()}
+              disabled={deleteApi.isLoading}
+              className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {tr('মুছুন', 'Delete')}
+            </button>
+          )}
           <span
             className={
               'inline-block rounded-full px-3 py-1 text-sm font-medium ' + pill
@@ -562,4 +592,4 @@ function Field({
       <dd className="mt-0.5 text-ink">{value || '—'}</dd>
     </div>
   );
-             }
+      }
