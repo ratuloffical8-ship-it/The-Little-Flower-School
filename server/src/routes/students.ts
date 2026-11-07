@@ -11,6 +11,7 @@ import {
   createStudent,
   updateStudent,
   deactivateStudent,
+  deleteStudentPermanently,
 } from '../services/student.service';
 import { getApplicationByApplicationId } from '../services/admission.service';
 
@@ -147,6 +148,23 @@ router.delete(
       targetId: req.params.id,
     });
     res.json({ success: true });
+  })
+);
+
+// Permanent delete (test data / wrong entries): student + results + attendance + application.
+router.delete(
+  '/:id/permanent',
+  verifyToken,
+  requireRole(...WRITE_ROLES),
+  ah(async (req, res) => {
+    const removed = await deleteStudentPermanently(req.params.id);
+    await logAudit({
+      actorUid: actor(req),
+      action: 'student.delete',
+      targetCollection: 'students',
+      targetId: req.params.id,
+    });
+    res.json({ success: true, removed });
   })
 );
 
