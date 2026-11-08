@@ -53,7 +53,12 @@ export const bengaliNameSchema = z
   .string()
   .min(2, 'নাম কমপক্ষে ২ অক্ষর হতে হবে')
   .max(100, 'নাম সর্বোচ্চ ১০০ অক্ষর')
-  .regex(/^[\u0980-\u09FF\s\-\.]+$/, 'শুধুমাত্র বাংলা অক্ষর ব্যবহার করুন');
+  .refine(
+    // Must contain Bengali letters; English letters and digits are not allowed.
+    // Any punctuation / keyboard-specific colon or space characters are accepted.
+    (v) => /[\u0980-\u09FF]/.test(v) && !/[A-Za-z0-9\u09E6-\u09EF]/.test(v),
+    'শুধুমাত্র বাংলা অক্ষর ব্যবহার করুন',
+  );
 
 /**
  * English name (allows Latin characters, spaces, hyphens, dots)
