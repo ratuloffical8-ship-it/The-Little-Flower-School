@@ -47,7 +47,7 @@ export const requiredString = (min = 1, max = 200) =>
     .max(max, `সর্বোচ্চ ${max} অক্ষর / Maximum ${max} characters`);
 
 /**
- * Bengali name (allows Bengali characters, spaces, hyphens)
+ * Bengali name (Bengali letters, spaces, and . : , - ' ( ) — so "মো:" and "মোঃ" style prefixes work)
  */
 export const bengaliNameSchema = z
   .string()
@@ -62,7 +62,7 @@ export const englishNameSchema = z
   .string()
   .min(2, 'Name must be at least 2 characters')
   .max(100, 'Name must be at most 100 characters')
-  .regex(/^[a-zA-Z\s\-\.']+$/, 'Only English letters allowed');
+  .regex(/^[a-zA-Z\s\-\.:,'’()]+$/, 'Only English letters allowed');
 
 /**
  * Date of birth — must be in the past, reasonable range
